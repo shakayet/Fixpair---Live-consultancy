@@ -16,7 +16,7 @@ export type IUser = {
   avatar?: string;
   status: 'active' | 'delete';
   verified: boolean;
-  provider?: 'local' | 'google' | 'facebook' | 'github';
+  provider?: 'local' | 'google' | 'facebook' | 'github' | 'apple';
   providerId?: string;
   authentication?: {
     isResetPassword: boolean;

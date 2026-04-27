@@ -12,6 +12,10 @@ type ProcessEnv = {
   FRONTEND_OAUTH_CALLBACK_URL?: string;
   GOOGLE_OAUTH_CLIENT_ID?: string;
   GOOGLE_OAUTH_CLIENT_SECRET?: string;
+  APPLE_OAUTH_CLIENT_ID?: string;
+  APPLE_OAUTH_TEAM_ID?: string;
+  APPLE_OAUTH_KEY_ID?: string;
+  APPLE_OAUTH_PRIVATE_KEY?: string;
 };
 
 const env = process.env as unknown as ProcessEnv;
@@ -77,6 +81,12 @@ const googleCallback = catchAsync(async (req: Request, res: Response) => {
 });
 
 /**
+ * Apple OAuth Callback Handler
+ * Called after Apple verifies the user
+ */
+const appleCallback = googleCallback;
+
+/**
  * Get Current User Profile
  * Returns the currently authenticated user's profile
  */
@@ -117,6 +127,15 @@ const getOAuthStatus = catchAsync(async (req: Request, res: Response) => {
       ),
       name: 'Google',
     },
+    apple: {
+      configured: !!(
+        env.APPLE_OAUTH_CLIENT_ID &&
+        env.APPLE_OAUTH_TEAM_ID &&
+        env.APPLE_OAUTH_KEY_ID &&
+        env.APPLE_OAUTH_PRIVATE_KEY
+      ),
+      name: 'Apple',
+    },
     // Future providers can be added here
     // facebook: {
     //   configured: !!process.env.FACEBOOK_OAUTH_CLIENT_ID,
@@ -134,6 +153,7 @@ const getOAuthStatus = catchAsync(async (req: Request, res: Response) => {
 
 export const OAuthController = {
   googleCallback,
+  appleCallback,
   getProfile,
   getOAuthStatus,
 };

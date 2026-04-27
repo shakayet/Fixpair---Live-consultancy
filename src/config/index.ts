@@ -39,6 +39,18 @@ export default {
         process.env.GOOGLE_OAUTH_CALLBACK_URL ||
         'http://localhost:5000/api/v1/oauth/google/callback',
     },
+    apple: {
+      clientID: process.env.APPLE_OAUTH_CLIENT_ID || '',
+      teamID: process.env.APPLE_OAUTH_TEAM_ID || '',
+      keyID: process.env.APPLE_OAUTH_KEY_ID || '',
+      privateKeyString: (process.env.APPLE_OAUTH_PRIVATE_KEY || '').replace(
+        /\\n/g,
+        '\n',
+      ),
+      callbackURL:
+        process.env.APPLE_OAUTH_CALLBACK_URL ||
+        'http://localhost:5000/api/v1/oauth/apple/callback',
+    },
     sessionSecret: process.env.SESSION_SECRET || 'your_session_secret_key',
   },
 };

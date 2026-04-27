@@ -1,5 +1,7 @@
+/* eslint-disable @typescript-eslint/consistent-type-definitions */
 import { Strategy } from 'passport';
 import { googleStrategy } from './google.strategy';
+import { appleStrategy } from './apple.strategy';
 
 /**
  * Strategy Registry
@@ -18,6 +20,11 @@ const strategies: StrategyConfig[] = [
   {
     name: 'google',
     strategy: googleStrategy,
+    enabled: true,
+  },
+  {
+    name: 'apple',
+    strategy: appleStrategy,
     enabled: true,
   },
   // Future strategies can be added here:

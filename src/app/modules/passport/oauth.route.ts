@@ -37,6 +37,30 @@ router.get(
 );
 
 /**
+ * Apple OAuth Routes
+ */
+
+// Initiate Apple OAuth login
+// Redirects user to Apple login page
+router.get(
+  '/apple',
+  passport.authenticate('apple', {
+    scope: ['name', 'email'],
+  }),
+);
+
+// Apple OAuth callback
+// Called by Apple after user authorization
+router.post(
+  '/apple/callback',
+  passport.authenticate('apple', {
+    failureRedirect: '/api/v1/oauth/login-failed',
+    session: true,
+  }),
+  OAuthController.appleCallback,
+);
+
+/**
  * Profile Routes
  */
 

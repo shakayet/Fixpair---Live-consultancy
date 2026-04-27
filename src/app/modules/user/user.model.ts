@@ -56,7 +56,7 @@ const userSchema = new Schema<IUser, UserModal>(
     },
     provider: {
       type: String,
-      enum: ['local', 'google', 'facebook', 'github'],
+      enum: ['local', 'google', 'facebook', 'github', 'apple'],
       default: 'local',
     },
     providerId: {
