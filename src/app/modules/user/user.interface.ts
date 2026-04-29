@@ -18,7 +18,7 @@ export type IUser = {
   verified: boolean;
   provider?: 'local' | 'google' | 'facebook' | 'github' | 'apple';
   providerId?: string;
-  consultancyType?: string;
+  consultancyType?: 'lawyer' | 'advisor' | 'doctor';
   experience?: string;
   languages?: string[];
   expertise?: string[];

@@ -65,6 +65,7 @@ const userSchema = new Schema<IUser, UserModal>(
     },
     consultancyType: {
       type: String,
+      enum: ['lawyer', 'advisor', 'doctor'],
       default: null,
     },
     experience: {
