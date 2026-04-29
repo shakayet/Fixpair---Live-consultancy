@@ -8,7 +8,6 @@ const availabilitySchema = new Schema<IAvailability>(
       type: Schema.Types.ObjectId,
       ref: 'User',
       required: true,
-      unique: true,
     },
     slots: [
       {
@@ -19,13 +18,16 @@ const availabilitySchema = new Schema<IAvailability>(
       },
     ],
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
-availabilitySchema.index({ consultant: 1 });
+availabilitySchema.index({ consultant: 1 }, { unique: true });
 availabilitySchema.index({ 'slots.date': 1 });
 
-export const Availability = model<IAvailability>('Availability', availabilitySchema);
+export const Availability = model<IAvailability>(
+  'Availability',
+  availabilitySchema,
+);
 
 // Consultation/Booking Schema
 const consultationSchema = new Schema<IConsultation>(
@@ -67,11 +69,14 @@ const consultationSchema = new Schema<IConsultation>(
       default: 'pending',
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 consultationSchema.index({ consultant: 1, date: 1 });
 consultationSchema.index({ user: 1 });
 consultationSchema.index({ slotId: 1 }, { unique: true }); // Prevent double booking of the same slotId
 
-export const Consultation = model<IConsultation>('Consultation', consultationSchema);
+export const Consultation = model<IConsultation>(
+  'Consultation',
+  consultationSchema,
+);

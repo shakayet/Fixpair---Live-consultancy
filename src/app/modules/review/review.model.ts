@@ -17,7 +17,6 @@ const reviewSchema = new Schema<IReview>(
       type: Schema.Types.ObjectId,
       ref: 'Consultation',
       required: true,
-      unique: true, // Prevent duplicate reviews per consultation
     },
     rating: {
       type: Number,
@@ -35,7 +34,7 @@ const reviewSchema = new Schema<IReview>(
     toJSON: {
       virtuals: true,
     },
-  }
+  },
 );
 
 // Indexes for optimized queries
