@@ -6,6 +6,8 @@ import ApiError from '../../../errors/ApiError';
 import QueryBuilder from '../../builder/QueryBuilder';
 import { Availability, Consultation } from './consultation.model';
 import { ISlot } from './consultation.interface';
+import { User } from '../user/user.model';
+import { USER_ROLES } from '../../../enums/user';
 
 const setAvailability = async (user: JwtPayload, slots: ISlot[]) => {
   const consultantId = user.id;
@@ -18,23 +20,26 @@ const setAvailability = async (user: JwtPayload, slots: ISlot[]) => {
   slots.forEach(slot => {
     const slotDate = new Date(slot.date);
     if (slotDate < now || slotDate > thirtyDaysLater) {
-      throw new ApiError(StatusCodes.BAD_REQUEST, 'Slots must be within the next 30 days');
+      throw new ApiError(
+        StatusCodes.BAD_REQUEST,
+        'Slots must be within the next 30 days',
+      );
     }
   });
 
   // 2. Check for overlapping slots in the input
   // (Simple version: just ensure uniqueness of date+time for this consultant)
-  
+
   // 3. Upsert availability
   const result = await Availability.findOneAndUpdate(
     { consultant: consultantId },
-    { 
-      $set: { 
+    {
+      $set: {
         consultant: consultantId,
-        slots: slots.map(s => ({ ...s, isBooked: false })) 
-      } 
+        slots: slots.map(s => ({ ...s, isBooked: false })),
+      },
     },
-    { upsert: true, new: true }
+    { upsert: true, new: true },
   );
 
   return result;
@@ -50,25 +55,36 @@ const getAvailableSlots = async (consultantId: string, date?: string) => {
 
   if (date) {
     const filterDate = new Date(date).toDateString();
-    slots = slots.filter(slot => new Date(slot.date).toDateString() === filterDate);
+    slots = slots.filter(
+      slot => new Date(slot.date).toDateString() === filterDate,
+    );
   }
 
   return slots;
 };
 
-const createBooking = async (user: JwtPayload, payload: { consultantId: string; slotId: string }) => {
+const createBooking = async (
+  user: JwtPayload,
+  payload: { consultantId: string; slotId: string },
+) => {
   const { consultantId, slotId } = payload;
   const userId = user.id;
+
+  // 0. Validate if consultantId is a valid consultant
+  const consultant = await User.findById(consultantId);
+  if (!consultant || consultant.role !== USER_ROLES.CONSULTANT) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Invalid consultant ID');
+  }
 
   const session = await mongoose.startSession();
   session.startTransaction();
 
   try {
     // 1. Find the availability and the specific slot
-    const availability = await Availability.findOne({ 
+    const availability = await Availability.findOne({
       consultant: consultantId,
       'slots._id': slotId,
-      'slots.isBooked': false 
+      'slots.isBooked': false,
     }).session(session);
 
     if (!availability) {
@@ -87,37 +103,46 @@ const createBooking = async (user: JwtPayload, payload: { consultantId: string; 
     const slotDate = new Date(slot.date);
 
     if (slotDate < now || slotDate > thirtyDaysLater) {
-      throw new ApiError(StatusCodes.BAD_REQUEST, 'Booking must be within the next 30 days');
+      throw new ApiError(
+        StatusCodes.BAD_REQUEST,
+        'Booking must be within the next 30 days',
+      );
     }
 
     // 3. Mark slot as booked (Atomic operation within transaction)
     const updatedAvailability = await Availability.findOneAndUpdate(
-      { 
-        consultant: consultantId, 
-        'slots._id': slotId, 
-        'slots.isBooked': false 
+      {
+        consultant: consultantId,
+        'slots._id': slotId,
+        'slots.isBooked': false,
       },
       { $set: { 'slots.$.isBooked': true } },
-      { session, new: true }
+      { session, new: true },
     );
 
     if (!updatedAvailability) {
-      throw new ApiError(StatusCodes.CONFLICT, 'Slot was already booked by someone else');
+      throw new ApiError(
+        StatusCodes.CONFLICT,
+        'Slot was already booked by someone else',
+      );
     }
 
     // 4. Create the consultation record
-    const result = await Consultation.create([
-      {
-        user: userId,
-        consultant: consultantId,
-        slotId: slotId,
-        date: slot.date,
-        startTime: slot.startTime,
-        endTime: slot.endTime,
-        status: 'pending',
-        paymentStatus: 'pending',
-      }
-    ], { session });
+    const result = await Consultation.create(
+      [
+        {
+          user: userId,
+          consultant: consultantId,
+          slotId: slotId,
+          date: slot.date,
+          startTime: slot.startTime,
+          endTime: slot.endTime,
+          status: 'pending',
+          paymentStatus: 'pending',
+        },
+      ],
+      { session },
+    );
 
     await session.commitTransaction();
     session.endSession();
@@ -130,7 +155,10 @@ const createBooking = async (user: JwtPayload, payload: { consultantId: string; 
   }
 };
 
-const getMyBookings = async (user: JwtPayload, query: Record<string, unknown>) => {
+const getMyBookings = async (
+  user: JwtPayload,
+  query: Record<string, unknown>,
+) => {
   const filter: Record<string, any> = {};
   if (user.role === 'USER') {
     filter.user = user.id;
@@ -146,30 +174,62 @@ const getMyBookings = async (user: JwtPayload, query: Record<string, unknown>) =
 
   const result = await bookingQuery.modelQuery.populate([
     { path: 'user', select: 'name image avatar' },
-    { path: 'consultant', select: 'name image avatar' }
+    { path: 'consultant', select: 'name image avatar' },
   ]);
   const meta = await bookingQuery.getPaginationInfo();
 
   return { result, meta };
 };
 
-const updateBookingStatus = async (user: JwtPayload, bookingId: string, status: string) => {
-  const booking = await Consultation.findById(bookingId);
-  if (!booking) {
-    throw new ApiError(StatusCodes.NOT_FOUND, 'Booking not found');
-  }
+const updateBookingStatus = async (
+  user: JwtPayload,
+  bookingId: string,
+  status: string,
+) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
 
-  // Authorization: Only consultant or admin can update status
-  if (user.role !== 'CONSULTANT' && user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN') {
-    throw new ApiError(StatusCodes.FORBIDDEN, 'You do not have permission to update booking status');
-  }
+  try {
+    const booking = await Consultation.findById(bookingId).session(session);
+    if (!booking) {
+      throw new ApiError(StatusCodes.NOT_FOUND, 'Booking not found');
+    }
 
-  const result = await Consultation.findByIdAndUpdate(
-    bookingId, 
-    { status }, 
-    { new: true }
-  );
-  return result;
+    // Authorization: Only consultant or admin can update status
+    if (
+      user.role !== 'CONSULTANT' &&
+      user.role !== 'ADMIN' &&
+      user.role !== 'SUPER_ADMIN'
+    ) {
+      throw new ApiError(
+        StatusCodes.FORBIDDEN,
+        'You do not have permission to update booking status',
+      );
+    }
+
+    // If cancelling, free up the slot in availability
+    if (status === 'cancelled' && booking.status !== 'cancelled') {
+      await Availability.findOneAndUpdate(
+        { consultant: booking.consultant, 'slots._id': booking.slotId },
+        { $set: { 'slots.$.isBooked': false } },
+        { session },
+      );
+    }
+
+    const result = await Consultation.findByIdAndUpdate(
+      bookingId,
+      { status },
+      { new: true, session },
+    );
+
+    await session.commitTransaction();
+    session.endSession();
+    return result;
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    throw error;
+  }
 };
 
 export const ConsultationService = {

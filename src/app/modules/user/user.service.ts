@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { StatusCodes } from 'http-status-codes';
 import { JwtPayload } from 'jsonwebtoken';
 import { USER_ROLES } from '../../../enums/user';
@@ -9,6 +10,7 @@ import generateOTP from '../../../util/generateOTP';
 import QueryBuilder from '../../builder/QueryBuilder';
 import { IUser } from './user.interface';
 import { User } from './user.model';
+import { ReviewService } from '../review/review.service';
 
 const getAllUsersToDB = async (query: Record<string, unknown>) => {
   const userQuery = new QueryBuilder(User.find(), query)
@@ -18,10 +20,21 @@ const getAllUsersToDB = async (query: Record<string, unknown>) => {
     .paginate()
     .fields();
 
-  const result = await userQuery.modelQuery;
+  const result = await userQuery.modelQuery.lean();
   const meta = await userQuery.getPaginationInfo();
 
-  return { result, meta };
+  // If fetching consultants, attach their stats
+  const resultWithStats = await Promise.all(
+    result.map(async (user: any) => {
+      if (user.role === USER_ROLES.CONSULTANT) {
+        const stats = await ReviewService.getConsultantStats(user._id.toString());
+        return { ...user, stats };
+      }
+      return user;
+    }),
+  );
+
+  return { result: resultWithStats, meta };
 };
 
 const createUserToDB = async (payload: Partial<IUser>): Promise<IUser> => {
@@ -64,7 +77,15 @@ const getUserProfileFromDB = async (
     throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
   }
 
-  return isExistUser;
+  const userObj = isExistUser.toObject();
+
+  // If user is a consultant, attach stats
+  if (userObj.role === USER_ROLES.CONSULTANT) {
+    const stats = await ReviewService.getConsultantStats(id);
+    (userObj as any).stats = stats;
+  }
+
+  return userObj;
 };
 
 const updateProfileToDB = async (
