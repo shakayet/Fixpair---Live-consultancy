@@ -18,6 +18,11 @@ export type IUser = {
   verified: boolean;
   provider?: 'local' | 'google' | 'facebook' | 'github' | 'apple';
   providerId?: string;
+  consultancyType?: string;
+  experience?: string;
+  languages?: string[];
+  expertise?: string[];
+  visitFee?: number;
   authentication?: {
     isResetPassword: boolean;
     oneTimeCode: number;

@@ -63,6 +63,26 @@ const userSchema = new Schema<IUser, UserModal>(
       type: String,
       default: null,
     },
+    consultancyType: {
+      type: String,
+      default: null,
+    },
+    experience: {
+      type: String,
+      default: null,
+    },
+    languages: {
+      type: [String],
+      default: [],
+    },
+    expertise: {
+      type: [String],
+      default: [],
+    },
+    visitFee: {
+      type: Number,
+      default: 0,
+    },
     authentication: {
       type: {
         isResetPassword: {
