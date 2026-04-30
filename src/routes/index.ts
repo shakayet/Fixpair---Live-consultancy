@@ -6,6 +6,7 @@ import { ReviewRoutes } from '../app/modules/review/review.route';
 import { ConsultationRoutes } from '../app/modules/consultation/consultation.route';
 import { FaqRoutes } from '../app/modules/faq/faq.route';
 import { TermsRoutes } from '../app/modules/terms/terms.route';
+import { PrivacyRoutes } from '../app/modules/privacy/privacy.route';
 const router = express.Router();
 
 const apiRoutes = [
@@ -36,6 +37,10 @@ const apiRoutes = [
   {
     path: '/terms',
     route: TermsRoutes,
+  },
+  {
+    path: '/privacy',
+    route: PrivacyRoutes,
   },
 ];
 
