@@ -17,6 +17,7 @@ export type IConsultation = {
   startTime?: string;
   endTime?: string;
   preferredWindow?: 'asap' | 'today' | 'tomorrow'; // For callback requests
+  notes?: string;
   status:
     | 'pending'
     | 'accepted'

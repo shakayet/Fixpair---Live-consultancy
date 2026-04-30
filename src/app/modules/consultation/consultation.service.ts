@@ -70,9 +70,10 @@ const createBooking = async (
     bookingType: 'scheduled' | 'instant' | 'callback';
     slotId?: string;
     preferredWindow?: 'asap' | 'today' | 'tomorrow';
+    notes?: string;
   },
 ) => {
-  const { consultantId, bookingType, slotId, preferredWindow } = payload;
+  const { consultantId, bookingType, slotId, preferredWindow, notes } = payload;
   const userId = user.id;
 
   // 0. Validate if consultantId is a valid consultant
@@ -151,6 +152,7 @@ const createBooking = async (
             date: slot.date,
             startTime: slot.startTime,
             endTime: slot.endTime,
+            notes,
             status: 'confirmed', // Scheduled bookings are confirmed immediately if slot is free
             paymentStatus: 'pending',
           },
@@ -173,6 +175,7 @@ const createBooking = async (
       user: userId,
       consultant: consultantId,
       bookingType: 'instant',
+      notes,
       status: 'pending',
       paymentStatus: 'pending',
     });
@@ -191,6 +194,7 @@ const createBooking = async (
       consultant: consultantId,
       bookingType: 'callback',
       preferredWindow,
+      notes,
       status: 'pending',
       paymentStatus: 'pending',
     });

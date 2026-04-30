@@ -68,6 +68,10 @@ const consultationSchema = new Schema<IConsultation>(
       enum: ['asap', 'today', 'tomorrow'],
       required: false,
     },
+    notes: {
+      type: String,
+      default: null,
+    },
     status: {
       type: String,
       enum: [

@@ -20,6 +20,7 @@ const createBookingZodSchema = z.object({
     }),
     slotId: z.string().optional(),
     preferredWindow: z.enum(['asap', 'today', 'tomorrow']).optional(),
+    notes: z.string().optional(),
   }),
 });
 
