@@ -84,6 +84,10 @@ const userSchema = new Schema<IUser, UserModal>(
       type: Number,
       default: 0,
     },
+    activeStatus: {
+      type: String,
+      default: null,
+    },
     authentication: {
       type: {
         isResetPassword: {

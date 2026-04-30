@@ -23,6 +23,7 @@ export type IUser = {
   languages?: string[];
   expertise?: string[];
   visitFee?: number;
+  activeStatus?: string;
   authentication?: {
     isResetPassword: boolean;
     oneTimeCode: number;

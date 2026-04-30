@@ -12,6 +12,7 @@ const createUserZodSchema = z.object({
     languages: z.array(z.string()).optional(),
     expertise: z.array(z.string()).optional(),
     visitFee: z.number().optional(),
+    activeStatus: z.string().optional(),
     profile: z.string().optional(),
   }),
 });
@@ -26,6 +27,7 @@ const updateUserZodSchema = z.object({
   languages: z.array(z.string()).optional(),
   expertise: z.array(z.string()).optional(),
   visitFee: z.number().optional(),
+  activeStatus: z.string().optional(),
 });
 
 export const UserValidation = {
