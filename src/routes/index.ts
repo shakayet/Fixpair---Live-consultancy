@@ -7,6 +7,7 @@ import { ConsultationRoutes } from '../app/modules/consultation/consultation.rou
 import { FaqRoutes } from '../app/modules/faq/faq.route';
 import { TermsRoutes } from '../app/modules/terms/terms.route';
 import { PrivacyRoutes } from '../app/modules/privacy/privacy.route';
+import { ReportRoutes } from '../app/modules/report/report.route';
 const router = express.Router();
 
 const apiRoutes = [
@@ -41,6 +42,10 @@ const apiRoutes = [
   {
     path: '/privacy',
     route: PrivacyRoutes,
+  },
+  {
+    path: '/report',
+    route: ReportRoutes,
   },
 ];
 
