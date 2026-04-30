@@ -40,6 +40,7 @@ router.get(
 router.patch(
   '/status/:id',
   auth(USER_ROLES.CONSULTANT, USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN),
+  validateRequest(ConsultationValidation.updateBookingStatusZodSchema),
   ConsultationController.updateBookingStatus,
 );
 

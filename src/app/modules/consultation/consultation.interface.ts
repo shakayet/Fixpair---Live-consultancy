@@ -9,13 +9,22 @@ export type ISlot = {
 };
 
 export type IConsultation = {
-  user?: Types.ObjectId;
+  user: Types.ObjectId;
   consultant: Types.ObjectId;
-  slotId?: Types.ObjectId; // Reference to the slot in the consultant's availability if we use a separate model, or just the date/time
-  date: Date;
-  startTime: string;
-  endTime: string;
-  status: 'pending' | 'confirmed' | 'completed' | 'cancelled';
+  bookingType: 'scheduled' | 'instant' | 'callback';
+  slotId?: Types.ObjectId; // For scheduled bookings
+  date?: Date;
+  startTime?: string;
+  endTime?: string;
+  preferredWindow?: 'asap' | 'today' | 'tomorrow'; // For callback requests
+  status:
+    | 'pending'
+    | 'accepted'
+    | 'rejected'
+    | 'confirmed'
+    | 'completed'
+    | 'cancelled'
+    | 'expired';
   paymentStatus: 'pending' | 'paid' | 'failed';
 };
 

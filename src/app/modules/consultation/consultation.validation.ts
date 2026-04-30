@@ -15,11 +15,33 @@ const setAvailabilityZodSchema = z.object({
 const createBookingZodSchema = z.object({
   body: z.object({
     consultantId: z.string({ required_error: 'Consultant ID is required' }),
-    slotId: z.string({ required_error: 'Slot ID is required' }),
+    bookingType: z.enum(['scheduled', 'instant', 'callback'], {
+      required_error: 'Booking type is required',
+    }),
+    slotId: z.string().optional(),
+    preferredWindow: z.enum(['asap', 'today', 'tomorrow']).optional(),
+  }),
+});
+
+const updateBookingStatusZodSchema = z.object({
+  body: z.object({
+    status: z.enum([
+      'pending',
+      'accepted',
+      'rejected',
+      'confirmed',
+      'completed',
+      'cancelled',
+      'expired',
+    ]),
+    date: z.string().optional(),
+    startTime: z.string().optional(),
+    endTime: z.string().optional(),
   }),
 });
 
 export const ConsultationValidation = {
   setAvailabilityZodSchema,
   createBookingZodSchema,
+  updateBookingStatusZodSchema,
 };

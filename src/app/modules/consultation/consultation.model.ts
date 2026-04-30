@@ -42,25 +42,43 @@ const consultationSchema = new Schema<IConsultation>(
       ref: 'User',
       required: true,
     },
+    bookingType: {
+      type: String,
+      enum: ['scheduled', 'instant', 'callback'],
+      required: true,
+    },
     slotId: {
       type: Schema.Types.ObjectId,
-      required: true,
+      required: false,
     },
     date: {
       type: Date,
-      required: true,
+      required: false,
     },
     startTime: {
       type: String,
-      required: true,
+      required: false,
     },
     endTime: {
       type: String,
-      required: true,
+      required: false,
+    },
+    preferredWindow: {
+      type: String,
+      enum: ['asap', 'today', 'tomorrow'],
+      required: false,
     },
     status: {
       type: String,
-      enum: ['pending', 'confirmed', 'completed', 'cancelled'],
+      enum: [
+        'pending',
+        'accepted',
+        'rejected',
+        'confirmed',
+        'completed',
+        'cancelled',
+        'expired',
+      ],
       default: 'pending',
     },
     paymentStatus: {

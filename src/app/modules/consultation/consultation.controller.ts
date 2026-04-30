@@ -7,7 +7,10 @@ import { ConsultationService } from './consultation.service';
 
 const setAvailability = catchAsync(async (req: Request, res: Response) => {
   const user = req.user as any;
-  const result = await ConsultationService.setAvailability(user, req.body.slots);
+  const result = await ConsultationService.setAvailability(
+    user,
+    req.body.slots,
+  );
 
   sendResponse(res, {
     success: true,
@@ -20,7 +23,10 @@ const setAvailability = catchAsync(async (req: Request, res: Response) => {
 const getAvailableSlots = catchAsync(async (req: Request, res: Response) => {
   const { consultantId } = req.params;
   const { date } = req.query;
-  const result = await ConsultationService.getAvailableSlots(consultantId, date as string);
+  const result = await ConsultationService.getAvailableSlots(
+    consultantId,
+    date as string,
+  );
 
   sendResponse(res, {
     success: true,
@@ -58,8 +64,11 @@ const getMyBookings = catchAsync(async (req: Request, res: Response) => {
 const updateBookingStatus = catchAsync(async (req: Request, res: Response) => {
   const user = req.user as any;
   const { id } = req.params;
-  const { status } = req.body;
-  const result = await ConsultationService.updateBookingStatus(user, id, status);
+  const result = await ConsultationService.updateBookingStatus(
+    user,
+    id,
+    req.body,
+  );
 
   sendResponse(res, {
     success: true,
