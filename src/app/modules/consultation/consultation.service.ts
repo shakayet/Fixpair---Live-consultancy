@@ -142,23 +142,20 @@ const createBooking = async (
       }
 
       // 4. Create the consultation record
-      const result = await Consultation.create(
-        [
-          {
-            user: userId,
-            consultant: consultantId,
-            bookingType: 'scheduled',
-            slotId: slotId,
-            date: slot.date,
-            startTime: slot.startTime,
-            endTime: slot.endTime,
-            notes,
-            status: 'confirmed', // Scheduled bookings are confirmed immediately if slot is free
-            paymentStatus: 'pending',
-          },
-        ],
-        { session },
-      );
+      const consultationData: any = {
+        user: userId,
+        consultant: consultantId,
+        bookingType: 'scheduled',
+        slotId: slotId,
+        date: slot.date,
+        startTime: slot.startTime,
+        endTime: slot.endTime,
+        status: 'confirmed', // Scheduled bookings are confirmed immediately if slot is free
+        paymentStatus: 'pending',
+      };
+      if (notes) consultationData.notes = notes;
+
+      const result = await Consultation.create([consultationData], { session });
 
       await session.commitTransaction();
       session.endSession();
@@ -171,14 +168,16 @@ const createBooking = async (
     }
   } else if (bookingType === 'instant') {
     // Instant booking: starts as pending
-    const result = await Consultation.create({
+    const instantBookingData: any = {
       user: userId,
       consultant: consultantId,
       bookingType: 'instant',
-      notes,
       status: 'pending',
       paymentStatus: 'pending',
-    });
+    };
+    if (notes) instantBookingData.notes = notes;
+
+    const result = await Consultation.create(instantBookingData);
     return result;
   } else if (bookingType === 'callback') {
     if (!preferredWindow) {
@@ -189,15 +188,17 @@ const createBooking = async (
     }
 
     // Callback request: starts as pending
-    const result = await Consultation.create({
+    const callbackBookingData: any = {
       user: userId,
       consultant: consultantId,
       bookingType: 'callback',
       preferredWindow,
-      notes,
       status: 'pending',
       paymentStatus: 'pending',
-    });
+    };
+    if (notes) callbackBookingData.notes = notes;
+
+    const result = await Consultation.create(callbackBookingData);
     return result;
   }
 };

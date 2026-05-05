@@ -96,7 +96,7 @@ const consultationSchema = new Schema<IConsultation>(
 
 consultationSchema.index({ consultant: 1, date: 1 });
 consultationSchema.index({ user: 1 });
-consultationSchema.index({ slotId: 1 }, { unique: true }); // Prevent double booking of the same slotId
+consultationSchema.index({ slotId: 1 }, { unique: true, sparse: true }); // Prevent double booking of the same slotId, sparse to allow multiple nulls/missing values
 
 export const Consultation = model<IConsultation>(
   'Consultation',

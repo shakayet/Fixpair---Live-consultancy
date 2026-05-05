@@ -7,7 +7,6 @@ const videoSessionSchema = new Schema<IVideoSession>(
       type: Schema.Types.ObjectId,
       ref: 'Consultation',
       required: true,
-      unique: true,
     },
     user: {
       type: Schema.Types.ObjectId,
@@ -22,7 +21,6 @@ const videoSessionSchema = new Schema<IVideoSession>(
     channelName: {
       type: String,
       required: true,
-      unique: true,
     },
     token: {
       type: String,
@@ -48,13 +46,16 @@ const videoSessionSchema = new Schema<IVideoSession>(
     toJSON: {
       virtuals: true,
     },
-  }
+  },
 );
 
 // Indexes
-videoSessionSchema.index({ consultation: 1 });
+videoSessionSchema.index({ consultation: 1 }, { unique: true });
 videoSessionSchema.index({ user: 1 });
 videoSessionSchema.index({ consultant: 1 });
 videoSessionSchema.index({ channelName: 1 }, { unique: true });
 
-export const VideoSession = model<IVideoSession>('VideoSession', videoSessionSchema);
+export const VideoSession = model<IVideoSession>(
+  'VideoSession',
+  videoSessionSchema,
+);
