@@ -53,4 +53,9 @@ export default {
     },
     sessionSecret: process.env.SESSION_SECRET || 'your_session_secret_key',
   },
+  agora: {
+    appId: process.env.AGORA_APP_ID || '',
+    appCertificate: process.env.AGORA_APP_CERTIFICATE || '',
+    expirationTime: Number(process.env.AGORA_TOKEN_EXPIRATION_TIME) || 3600,
+  },
 };

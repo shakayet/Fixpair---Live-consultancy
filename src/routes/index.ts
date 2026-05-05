@@ -8,6 +8,7 @@ import { FaqRoutes } from '../app/modules/faq/faq.route';
 import { TermsRoutes } from '../app/modules/terms/terms.route';
 import { PrivacyRoutes } from '../app/modules/privacy/privacy.route';
 import { ReportRoutes } from '../app/modules/report/report.route';
+import { VideoSessionRoutes } from '../app/modules/videoSession/videoSession.route';
 const router = express.Router();
 
 const apiRoutes = [
@@ -46,6 +47,10 @@ const apiRoutes = [
   {
     path: '/report',
     route: ReportRoutes,
+  },
+  {
+    path: '/video-session',
+    route: VideoSessionRoutes,
   },
 ];
 
