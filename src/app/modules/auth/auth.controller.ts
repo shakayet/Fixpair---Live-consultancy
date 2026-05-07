@@ -58,9 +58,25 @@ const resendOtp = catchAsync(async (req: Request, res: Response) => {
 });
 
 const resetPassword = catchAsync(async (req: Request, res: Response) => {
-  const token = req.headers.authorization;
+  const tokenWithBearer = req.headers.authorization;
+  if (!tokenWithBearer) {
+    throw new ApiError(StatusCodes.UNAUTHORIZED, 'You are not authorized');
+  }
+
+  // Handle both "Bearer <token>" and raw "<token>"
+  let token: string;
+  if (tokenWithBearer.startsWith('Bearer ')) {
+    token = tokenWithBearer.substring(7).trim();
+  } else {
+    token = tokenWithBearer.trim();
+  }
+
+  if (!token) {
+    throw new ApiError(StatusCodes.UNAUTHORIZED, 'You are not authorized');
+  }
+
   const { ...resetData } = req.body;
-  const result = await AuthService.resetPasswordToDB(token!, resetData);
+  const result = await AuthService.resetPasswordToDB(token, resetData);
 
   sendResponse(res, {
     success: true,

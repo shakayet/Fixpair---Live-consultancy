@@ -52,14 +52,22 @@ const loginUserFromDB = async (payload: ILoginData) => {
 
   //create access token
   const accessToken = jwtHelper.createToken(
-    { id: isExistUser._id, role: isExistUser.role, email: isExistUser.email },
+    {
+      id: isExistUser._id.toString(),
+      role: isExistUser.role,
+      email: isExistUser.email,
+    },
     config.jwt.jwt_secret as Secret,
     config.jwt.jwt_expire_in as string,
   );
 
   //create refresh token
   const refreshToken = jwtHelper.createToken(
-    { id: isExistUser._id, role: isExistUser.role, email: isExistUser.email },
+    {
+      id: isExistUser._id.toString(),
+      role: isExistUser.role,
+      email: isExistUser.email,
+    },
     config.jwt.jwt_refresh_secret as Secret,
     config.jwt.jwt_refresh_expire_in as string,
   );
@@ -170,7 +178,7 @@ const resetPasswordToDB = async (
 ) => {
   const { newPassword, confirmPassword } = payload;
   //isExist token
-  const isExistToken = await ResetToken.isExistToken(token);
+  const isExistToken = await ResetToken.isExistToken(token.trim());
   if (!isExistToken) {
     throw new ApiError(StatusCodes.UNAUTHORIZED, 'You are not authorized');
   }

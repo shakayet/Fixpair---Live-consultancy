@@ -15,12 +15,20 @@ const auth =
       }
 
       const token = tokenWithBearer.split(' ')[1];
+      if (!token) {
+        throw new ApiError(StatusCodes.UNAUTHORIZED, 'You are not authorized');
+      }
+
+      const secret = config.jwt.jwt_secret;
+      if (!secret) {
+        throw new ApiError(
+          StatusCodes.INTERNAL_SERVER_ERROR,
+          'JWT Secret is not defined in configuration',
+        );
+      }
 
       //verify token
-      const verifyUser = jwtHelper.verifyToken(
-        token,
-        config.jwt.jwt_secret as Secret,
-      );
+      const verifyUser = jwtHelper.verifyToken(token, secret as Secret);
       //set user to header
       req.user = verifyUser;
 
