@@ -14,14 +14,19 @@ router
     validateRequest(TermsValidation.createTermsZodSchema),
     TermsController.createTerms,
   )
-  .get(TermsController.getTerms);
+  .get(TermsController.getAllTerms);
 
 router
   .route('/:id')
+  .get(TermsController.getSingleTerms)
   .patch(
     auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN),
     validateRequest(TermsValidation.updateTermsZodSchema),
     TermsController.updateTerms,
+  )
+  .delete(
+    auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN),
+    TermsController.deleteTerms,
   );
 
 export const TermsRoutes = router;

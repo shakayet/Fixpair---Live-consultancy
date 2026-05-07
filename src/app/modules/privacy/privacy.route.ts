@@ -14,14 +14,19 @@ router
     validateRequest(PrivacyValidation.createPrivacyZodSchema),
     PrivacyController.createPrivacy,
   )
-  .get(PrivacyController.getPrivacy);
+  .get(PrivacyController.getAllPrivacies);
 
 router
   .route('/:id')
+  .get(PrivacyController.getSinglePrivacy)
   .patch(
     auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN),
     validateRequest(PrivacyValidation.updatePrivacyZodSchema),
     PrivacyController.updatePrivacy,
+  )
+  .delete(
+    auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN),
+    PrivacyController.deletePrivacy,
   );
 
 export const PrivacyRoutes = router;

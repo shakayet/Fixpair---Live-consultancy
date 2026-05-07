@@ -10,13 +10,25 @@ const createPrivacy = catchAsync(async (req: Request, res: Response) => {
   sendResponse(res, {
     success: true,
     statusCode: StatusCodes.OK,
-    message: 'Privacy Policy created/updated successfully',
+    message: 'Privacy Policy created successfully',
     data: result,
   });
 });
 
-const getPrivacy = catchAsync(async (req: Request, res: Response) => {
-  const result = await PrivacyService.getPrivacy();
+const getAllPrivacies = catchAsync(async (req: Request, res: Response) => {
+  const result = await PrivacyService.getAllPrivacies(req.query);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'Privacy Policies retrieved successfully',
+    pagination: result.meta,
+    data: result.result,
+  });
+});
+
+const getSinglePrivacy = catchAsync(async (req: Request, res: Response) => {
+  const result = await PrivacyService.getSinglePrivacy(req.params.id);
 
   sendResponse(res, {
     success: true,
@@ -38,8 +50,22 @@ const updatePrivacy = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const deletePrivacy = catchAsync(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const result = await PrivacyService.deletePrivacy(id);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'Privacy Policy deleted successfully',
+    data: result,
+  });
+});
+
 export const PrivacyController = {
   createPrivacy,
-  getPrivacy,
+  getAllPrivacies,
+  getSinglePrivacy,
   updatePrivacy,
+  deletePrivacy,
 };

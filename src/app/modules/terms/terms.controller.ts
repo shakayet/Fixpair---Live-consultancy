@@ -10,13 +10,25 @@ const createTerms = catchAsync(async (req: Request, res: Response) => {
   sendResponse(res, {
     success: true,
     statusCode: StatusCodes.OK,
-    message: 'Terms & Conditions created/updated successfully',
+    message: 'Terms & Conditions created successfully',
     data: result,
   });
 });
 
-const getTerms = catchAsync(async (req: Request, res: Response) => {
-  const result = await TermsService.getTerms();
+const getAllTerms = catchAsync(async (req: Request, res: Response) => {
+  const result = await TermsService.getAllTerms(req.query);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'Terms & Conditions retrieved successfully',
+    pagination: result.meta,
+    data: result.result,
+  });
+});
+
+const getSingleTerms = catchAsync(async (req: Request, res: Response) => {
+  const result = await TermsService.getSingleTerms(req.params.id);
 
   sendResponse(res, {
     success: true,
@@ -38,8 +50,22 @@ const updateTerms = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const deleteTerms = catchAsync(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const result = await TermsService.deleteTerms(id);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'Terms & Conditions deleted successfully',
+    data: result,
+  });
+});
+
 export const TermsController = {
   createTerms,
-  getTerms,
+  getAllTerms,
+  getSingleTerms,
   updateTerms,
+  deleteTerms,
 };

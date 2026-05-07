@@ -17,18 +17,23 @@ const createReview = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-const getReviewsByConsultant = catchAsync(async (req: Request, res: Response) => {
-  const { consultantId } = req.params;
-  const result = await ReviewService.getReviewsByConsultant(consultantId, req.query);
+const getReviewsByConsultant = catchAsync(
+  async (req: Request, res: Response) => {
+    const { consultantId } = req.params;
+    const result = await ReviewService.getReviewsByConsultant(
+      consultantId,
+      req.query,
+    );
 
-  sendResponse(res, {
-    success: true,
-    statusCode: StatusCodes.OK,
-    message: 'Reviews retrieved successfully',
-    ...(result.meta && { meta: result.meta }),
-    data: result.result,
-  });
-});
+    sendResponse(res, {
+      success: true,
+      statusCode: StatusCodes.OK,
+      message: 'Reviews retrieved successfully',
+      pagination: result.meta,
+      data: result.result,
+    });
+  },
+);
 
 const updateReview = catchAsync(async (req: Request, res: Response) => {
   const user = req.user as any;
