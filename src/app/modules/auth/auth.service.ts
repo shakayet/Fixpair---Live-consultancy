@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-non-null-asserted-optional-chain */
 import bcrypt from 'bcrypt';
 import { StatusCodes } from 'http-status-codes';
 import { JwtPayload, Secret } from 'jsonwebtoken';
@@ -83,17 +84,21 @@ const forgetPasswordToDB = async (email: string) => {
   emailHelper.sendEmail(forgetPassword);
 
   //save to DB
-  const authentication = {
-    oneTimeCode: otp,
-    expireAt: new Date(Date.now() + 3 * 60000),
-  };
-  await User.findOneAndUpdate({ email }, { $set: { authentication } });
+  await User.findOneAndUpdate(
+    { email },
+    {
+      $set: {
+        'authentication.oneTimeCode': otp,
+        'authentication.expireAt': new Date(Date.now() + 3 * 60000),
+      },
+    },
+  );
 };
 
 //verify email
 const verifyEmailToDB = async (payload: IVerifyEmail) => {
   const { email, oneTimeCode } = payload;
-  const isExistUser = await User.findOne({ email }).select('+authentication');
+  const isExistUser = await User.findOne({ email });
   if (!isExistUser) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
   }
@@ -110,7 +115,7 @@ const verifyEmailToDB = async (payload: IVerifyEmail) => {
   }
 
   const date = new Date();
-  if (date > isExistUser.authentication?.expireAt) {
+  if (date > isExistUser.authentication?.expireAt!) {
     throw new ApiError(
       StatusCodes.BAD_REQUEST,
       'Otp already expired, Please try again',
@@ -123,17 +128,23 @@ const verifyEmailToDB = async (payload: IVerifyEmail) => {
   if (!isExistUser.verified) {
     await User.findOneAndUpdate(
       { _id: isExistUser._id },
-      { verified: true, authentication: { oneTimeCode: null, expireAt: null } },
+      {
+        $set: {
+          verified: true,
+          'authentication.oneTimeCode': null,
+          'authentication.expireAt': null,
+        },
+      },
     );
     message = 'Email verify successfully';
   } else {
     await User.findOneAndUpdate(
       { _id: isExistUser._id },
       {
-        authentication: {
-          isResetPassword: true,
-          oneTimeCode: null,
-          expireAt: null,
+        $set: {
+          'authentication.isResetPassword': true,
+          'authentication.oneTimeCode': null,
+          'authentication.expireAt': null,
         },
       },
     );
@@ -197,16 +208,18 @@ const resetPasswordToDB = async (
     Number(config.bcrypt_salt_rounds),
   );
 
-  const updateData = {
-    password: hashPassword,
-    authentication: {
-      isResetPassword: false,
+  await User.findOneAndUpdate(
+    { _id: isExistToken.user },
+    {
+      $set: {
+        password: hashPassword,
+        'authentication.isResetPassword': false,
+      },
     },
-  };
-
-  await User.findOneAndUpdate({ _id: isExistToken.user }, updateData, {
-    new: true,
-  });
+    {
+      new: true,
+    },
+  );
 };
 
 const changePasswordToDB = async (
@@ -248,15 +261,16 @@ const changePasswordToDB = async (
     Number(config.bcrypt_salt_rounds),
   );
 
-  const updateData = {
-    password: hashPassword,
-  };
-  await User.findOneAndUpdate({ _id: user.id }, updateData, { new: true });
+  await User.findOneAndUpdate(
+    { _id: user.id },
+    { $set: { password: hashPassword } },
+    { new: true },
+  );
 };
 
 // resend otp
 const resendOtpToDB = async (email: string) => {
-  const isExistUser = await User.findOne({ email }).select('+authentication');
+  const isExistUser = await User.findOne({ email });
   if (!isExistUser) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
   }
@@ -280,7 +294,10 @@ const resendOtpToDB = async (email: string) => {
         );
       } else {
         // Reset count after 15 minutes
-        auth.otpRequestCount = 0;
+        await User.findOneAndUpdate(
+          { _id: isExistUser._id },
+          { $set: { 'authentication.otpRequestCount': 0 } },
+        );
       }
     }
   }
@@ -296,18 +313,17 @@ const resendOtpToDB = async (email: string) => {
   const resendTemplate = emailTemplate.createAccount(values);
   emailHelper.sendEmail(resendTemplate);
 
-  // update user authentication data
-  const updatedAuth = {
-    ...auth,
-    oneTimeCode: otp,
-    expireAt: new Date(Date.now() + 3 * 60000), // 3 minutes expiry
-    otpRequestCount: (auth?.otpRequestCount || 0) + 1,
-    lastOtpRequestTime: now,
-  };
-
+  // update user authentication data using dot notation
   await User.findOneAndUpdate(
     { _id: isExistUser._id },
-    { $set: { authentication: updatedAuth } },
+    {
+      $set: {
+        'authentication.oneTimeCode': otp,
+        'authentication.expireAt': new Date(Date.now() + 3 * 60000), // 3 minutes expiry
+        'authentication.lastOtpRequestTime': now,
+      },
+      $inc: { 'authentication.otpRequestCount': 1 },
+    },
   );
 
   return { message: 'OTP resent successfully, please check your email' };

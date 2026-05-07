@@ -110,32 +110,37 @@ const userSchema = new Schema<IUser, UserModal>(
       },
     ],
     authentication: {
-      type: {
-        isResetPassword: {
-          type: Boolean,
-          default: false,
-        },
-        oneTimeCode: {
-          type: Number,
-          default: null,
-        },
-        expireAt: {
-          type: Date,
-          default: null,
-        },
-        otpRequestCount: {
-          type: Number,
-          default: 0,
-        },
-        lastOtpRequestTime: {
-          type: Date,
-          default: null,
-        },
+      isResetPassword: {
+        type: Boolean,
+        default: false,
       },
-      select: 0,
+      oneTimeCode: {
+        type: Number,
+        default: null,
+      },
+      expireAt: {
+        type: Date,
+        default: null,
+      },
+      otpRequestCount: {
+        type: Number,
+        default: 0,
+      },
+      lastOtpRequestTime: {
+        type: Date,
+        default: null,
+      },
     },
   },
-  { timestamps: true },
+  {
+    timestamps: true,
+    toJSON: {
+      transform(doc, ret) {
+        delete ret.authentication;
+        return ret;
+      },
+    },
+  },
 );
 
 //exist user check

@@ -56,13 +56,14 @@ const createUserToDB = async (payload: Partial<IUser>): Promise<IUser> => {
   emailHelper.sendEmail(createAccountTemplate);
 
   //save to DB
-  const authentication = {
-    oneTimeCode: otp,
-    expireAt: new Date(Date.now() + 3 * 60000),
-  };
   await User.findOneAndUpdate(
     { _id: createUser._id },
-    { $set: { authentication } },
+    {
+      $set: {
+        'authentication.oneTimeCode': otp,
+        'authentication.expireAt': new Date(Date.now() + 3 * 60000),
+      },
+    },
   );
 
   return createUser;
