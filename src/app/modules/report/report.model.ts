@@ -7,7 +7,6 @@ const reportSchema = new Schema<IReport>(
       type: Schema.Types.ObjectId,
       ref: 'Consultation',
       required: true,
-      unique: true,
     },
     user: {
       type: Schema.Types.ObjectId,
@@ -48,10 +47,10 @@ const reportSchema = new Schema<IReport>(
     toJSON: {
       virtuals: true,
     },
-  }
+  },
 );
 
-reportSchema.index({ consultation: 1 });
+reportSchema.index({ consultation: 1 }, { unique: true });
 reportSchema.index({ user: 1 });
 reportSchema.index({ consultant: 1 });
 

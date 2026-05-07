@@ -82,6 +82,9 @@ const createBooking = async (
     throw new ApiError(StatusCodes.BAD_REQUEST, 'Invalid consultant ID');
   }
 
+  const perMinuteRate = consultant.perMinuteRate || 0;
+  const platformFee = config.payment.billing.platformFee;
+
   if (bookingType === 'scheduled') {
     if (!slotId) {
       throw new ApiError(
@@ -152,6 +155,8 @@ const createBooking = async (
         endTime: slot.endTime,
         status: 'confirmed', // Scheduled bookings are confirmed immediately if slot is free
         paymentStatus: 'pending',
+        perMinuteRate,
+        platformFee,
       };
       if (notes) consultationData.notes = notes;
 
@@ -174,6 +179,8 @@ const createBooking = async (
       bookingType: 'instant',
       status: 'pending',
       paymentStatus: 'pending',
+      perMinuteRate,
+      platformFee,
     };
     if (notes) instantBookingData.notes = notes;
 
@@ -195,6 +202,8 @@ const createBooking = async (
       preferredWindow,
       status: 'pending',
       paymentStatus: 'pending',
+      perMinuteRate,
+      platformFee,
     };
     if (notes) callbackBookingData.notes = notes;
 
