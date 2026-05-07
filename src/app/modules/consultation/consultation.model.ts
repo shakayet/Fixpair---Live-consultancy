@@ -72,6 +72,40 @@ const consultationSchema = new Schema<IConsultation>(
       type: String,
       default: null,
     },
+    perMinuteRate: {
+      type: Number,
+      required: true,
+    },
+    platformFee: {
+      type: Number,
+      default: 5,
+    },
+    totalAmount: {
+      type: Number,
+      default: 0,
+    },
+    authorizedAmount: {
+      type: Number,
+      default: 0,
+    },
+    consumedAmount: {
+      type: Number,
+      default: 0,
+    },
+    remainingMinutes: {
+      type: Number,
+      default: 0,
+    },
+    billingStatus: {
+      type: String,
+      enum: ['pending', 'authorized', 'charging', 'failed', 'completed'],
+      default: 'pending',
+    },
+    terminationReason: {
+      type: String,
+      enum: ['manual', 'insufficient_funds', 'force_terminated'],
+      default: null,
+    },
     status: {
       type: String,
       enum: [

@@ -58,4 +58,24 @@ export default {
     appCertificate: process.env.AGORA_APP_CERTIFICATE || '',
     expirationTime: Number(process.env.AGORA_TOKEN_EXPIRATION_TIME) || 3600,
   },
+  payment: {
+    stripe: {
+      secretKey: process.env.STRIPE_SECRET_KEY || '',
+      publishableKey: process.env.STRIPE_PUBLISHABLE_KEY || '',
+      webhookSecret: process.env.STRIPE_WEBHOOK_SECRET || '',
+      currency: process.env.STRIPE_CURRENCY || 'usd',
+    },
+    paypal: {
+      clientId: process.env.PAYPAL_CLIENT_ID || '',
+      clientSecret: process.env.PAYPAL_CLIENT_SECRET || '',
+      environment: process.env.PAYPAL_ENVIRONMENT || 'sandbox',
+    },
+    billing: {
+      platformFee: Number(process.env.PLATFORM_FIXED_FEE) || 5,
+      minMinutes: Number(process.env.MINIMUM_CONSULTATION_MINUTES) || 1,
+      retryAttempts: Number(process.env.PAYMENT_RETRY_ATTEMPTS) || 3,
+      retryDelay: Number(process.env.PAYMENT_RETRY_DELAY_SECONDS) || 30,
+      warningMinutes: Number(process.env.CONSULTATION_WARNING_MINUTES) || 5,
+    },
+  },
 };

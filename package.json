@@ -40,6 +40,8 @@
     "typescript": "^5.5.3"
   },
   "dependencies": {
+    "@paypal/checkout-server-sdk": "^1.0.3",
+    "@types/paypal__checkout-server-sdk": "^1.0.8",
     "agora-access-token": "^2.0.4",
     "bcrypt": "^6.0.0",
     "bcryptjs": "^3.0.2",
@@ -61,6 +63,7 @@
     "passport-google-oauth20": "^2.0.0",
     "pdfkit": "^0.18.0",
     "socket.io": "^4.7.5",
+    "stripe": "^22.1.1",
     "tesseract.js": "^6.0.1",
     "winston": "^3.13.0",
     "winston-daily-rotate-file": "^5.0.0",

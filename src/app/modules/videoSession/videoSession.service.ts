@@ -73,6 +73,9 @@ const createSession = async (user: JwtPayload, consultationId: string) => {
   return result;
 };
 
+import { BillingService } from '../payment/billing.service';
+import { InvoiceService } from '../payment/invoice.service';
+
 const joinSession = async (user: JwtPayload, sessionId: string) => {
   const session = await VideoSession.findById(sessionId);
   if (!session) {
@@ -96,6 +99,9 @@ const joinSession = async (user: JwtPayload, sessionId: string) => {
     session.status = 'ongoing';
     session.startedAt = new Date();
     await session.save();
+
+    // Start billing engine
+    await BillingService.startBilling(session.consultation.toString());
   }
 
   return session;
@@ -130,6 +136,11 @@ const endSession = async (user: JwtPayload, sessionId: string) => {
   }
 
   await session.save();
+
+  // Stop billing and generate invoice
+  BillingService.stopBilling(session.consultation.toString());
+  await InvoiceService.finalizeInvoice(session.consultation.toString());
+
   return session;
 };
 

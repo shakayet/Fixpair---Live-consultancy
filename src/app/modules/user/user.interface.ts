@@ -23,7 +23,17 @@ export type IUser = {
   languages?: string[];
   expertise?: string[];
   visitFee?: number;
+  perMinuteRate?: number;
   activeStatus?: string;
+  stripeCustomerId?: string;
+  paypalPayerId?: string;
+  paymentMethods?: {
+    provider: 'stripe' | 'paypal';
+    methodId: string;
+    last4?: string;
+    brand?: string;
+    isDefault: boolean;
+  }[];
   authentication?: {
     isResetPassword: boolean;
     oneTimeCode: number;

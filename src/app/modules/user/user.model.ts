@@ -84,10 +84,31 @@ const userSchema = new Schema<IUser, UserModal>(
       type: Number,
       default: 0,
     },
+    perMinuteRate: {
+      type: Number,
+      default: 0,
+    },
     activeStatus: {
       type: String,
       default: null,
     },
+    stripeCustomerId: {
+      type: String,
+      default: null,
+    },
+    paypalPayerId: {
+      type: String,
+      default: null,
+    },
+    paymentMethods: [
+      {
+        provider: { type: String, enum: ['stripe', 'paypal'] },
+        methodId: { type: String },
+        last4: { type: String },
+        brand: { type: String },
+        isDefault: { type: Boolean, default: false },
+      },
+    ],
     authentication: {
       type: {
         isResetPassword: {
