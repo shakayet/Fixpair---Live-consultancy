@@ -1,3 +1,4 @@
+/* eslint-disable no-undef */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { StatusCodes } from 'http-status-codes';
 import { JwtPayload } from 'jsonwebtoken';
@@ -8,6 +9,7 @@ import { Availability, Consultation } from './consultation.model';
 import { ISlot } from './consultation.interface';
 import { User } from '../user/user.model';
 import { USER_ROLES } from '../../../enums/user';
+import config from '../../../config';
 
 const setAvailability = async (user: JwtPayload, slots: ISlot[]) => {
   const consultantId = user.id;
