@@ -36,8 +36,10 @@ export type IUser = {
   }[];
   authentication?: {
     isResetPassword: boolean;
-    oneTimeCode: number;
+    oneTimeCode: number | null;
     expireAt: Date;
+    otpRequestCount: number;
+    lastOtpRequestTime: Date | null;
   };
 };
 

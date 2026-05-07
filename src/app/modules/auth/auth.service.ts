@@ -256,20 +256,36 @@ const changePasswordToDB = async (
 
 // resend otp
 const resendOtpToDB = async (email: string) => {
-  const isExistUser = await User.findOne({ email });
+  const isExistUser = await User.findOne({ email }).select('+authentication');
   if (!isExistUser) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
   }
 
-  // If user already verified, no need to resend
-  // if (isExistUser.verified) {
-  //   throw new ApiError(
-  //     StatusCodes.BAD_REQUEST,
-  //     'Your account is already verified'
-  //   );
-  // }
+  const now = new Date();
+  const auth = isExistUser.authentication;
 
-  //generate new otp
+  // Rate limit logic: 3 requests, then 15 minutes wait
+  if (auth?.lastOtpRequestTime) {
+    const timeDifference = now.getTime() - auth.lastOtpRequestTime.getTime();
+    const fifteenMinutes = 15 * 60 * 1000;
+
+    if (auth.otpRequestCount >= 3) {
+      if (timeDifference < fifteenMinutes) {
+        const remainingTime = Math.ceil(
+          (fifteenMinutes - timeDifference) / 60000,
+        );
+        throw new ApiError(
+          StatusCodes.TOO_MANY_REQUESTS,
+          `Too many requests. Please try again after ${remainingTime} minutes.`,
+        );
+      } else {
+        // Reset count after 15 minutes
+        auth.otpRequestCount = 0;
+      }
+    }
+  }
+
+  // generate new otp
   const otp = generateOTP();
   const values = {
     name: isExistUser.name,
@@ -280,15 +296,18 @@ const resendOtpToDB = async (email: string) => {
   const resendTemplate = emailTemplate.createAccount(values);
   emailHelper.sendEmail(resendTemplate);
 
-  //save otp to DB
-  const authentication = {
+  // update user authentication data
+  const updatedAuth = {
+    ...auth,
     oneTimeCode: otp,
     expireAt: new Date(Date.now() + 3 * 60000), // 3 minutes expiry
+    otpRequestCount: (auth?.otpRequestCount || 0) + 1,
+    lastOtpRequestTime: now,
   };
 
   await User.findOneAndUpdate(
     { _id: isExistUser._id },
-    { $set: { authentication } },
+    { $set: { authentication: updatedAuth } },
   );
 
   return { message: 'OTP resent successfully, please check your email' };

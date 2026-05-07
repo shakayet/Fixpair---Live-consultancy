@@ -123,6 +123,14 @@ const userSchema = new Schema<IUser, UserModal>(
           type: Date,
           default: null,
         },
+        otpRequestCount: {
+          type: Number,
+          default: 0,
+        },
+        lastOtpRequestTime: {
+          type: Date,
+          default: null,
+        },
       },
       select: 0,
     },

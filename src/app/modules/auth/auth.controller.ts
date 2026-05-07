@@ -47,8 +47,8 @@ const forgetPassword = catchAsync(async (req: Request, res: Response) => {
 });
 
 const resendOtp = catchAsync(async (req: Request, res: Response) => {
-  const user = req.user as JwtPayload;
-  const result = await AuthService.resendOtpToDB(user.email);
+  const { email } = req.body;
+  const result = await AuthService.resendOtpToDB(email);
 
   sendResponse(res, {
     success: true,
