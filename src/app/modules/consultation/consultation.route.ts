@@ -18,6 +18,7 @@ router.post(
 // User: View available slots for a consultant
 router.get(
   '/available-slots/:consultantId',
+  validateRequest(ConsultationValidation.getAvailableSlotsZodSchema),
   ConsultationController.getAvailableSlots,
 );
 
@@ -32,7 +33,12 @@ router.post(
 // User/Consultant: View their bookings
 router.get(
   '/my-bookings',
-  auth(USER_ROLES.USER, USER_ROLES.CONSULTANT, USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN),
+  auth(
+    USER_ROLES.USER,
+    USER_ROLES.CONSULTANT,
+    USER_ROLES.ADMIN,
+    USER_ROLES.SUPER_ADMIN,
+  ),
   ConsultationController.getMyBookings,
 );
 

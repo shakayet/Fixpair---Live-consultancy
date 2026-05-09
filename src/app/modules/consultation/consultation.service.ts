@@ -53,13 +53,22 @@ const getAvailableSlots = async (consultantId: string, date?: string) => {
     return [];
   }
 
+  // Filter only unbooked slots
   let slots = availability.slots.filter(slot => !slot.isBooked);
 
+  // If date is provided, filter by that specific date
   if (date) {
-    const filterDate = new Date(date).toDateString();
-    slots = slots.filter(
-      slot => new Date(slot.date).toDateString() === filterDate,
-    );
+    // Ensure we compare only the date part (YYYY-MM-DD)
+    const targetDate = new Date(date).toISOString().split('T')[0];
+    slots = slots.filter(slot => {
+      const slotDate = new Date(slot.date).toISOString().split('T')[0];
+      return slotDate === targetDate;
+    });
+  } else {
+    // If no date provided, only show future slots (including today)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    slots = slots.filter(slot => new Date(slot.date) >= today);
   }
 
   return slots;

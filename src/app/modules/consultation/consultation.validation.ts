@@ -41,8 +41,15 @@ const updateBookingStatusZodSchema = z.object({
   }),
 });
 
+const getAvailableSlotsZodSchema = z.object({
+  query: z.object({
+    date: z.string().optional(),
+  }),
+});
+
 export const ConsultationValidation = {
   setAvailabilityZodSchema,
   createBookingZodSchema,
   updateBookingStatusZodSchema,
+  getAvailableSlotsZodSchema,
 };
