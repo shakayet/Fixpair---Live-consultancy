@@ -110,8 +110,8 @@ const createBooking = async (
     try {
       // 1. Find the availability and the specific slot
       const availability = await Availability.findOne({
-        consultant: consultantId,
-        'slots._id': slotId,
+        consultant: new mongoose.Types.ObjectId(consultantId),
+        'slots._id': new mongoose.Types.ObjectId(slotId),
         'slots.isBooked': false,
       }).session(session);
 
@@ -140,8 +140,8 @@ const createBooking = async (
       // 3. Mark slot as booked
       const updatedAvailability = await Availability.findOneAndUpdate(
         {
-          consultant: consultantId,
-          'slots._id': slotId,
+          consultant: new mongoose.Types.ObjectId(consultantId),
+          'slots._id': new mongoose.Types.ObjectId(slotId),
           'slots.isBooked': false,
         },
         { $set: { 'slots.$.isBooked': true } },
@@ -157,10 +157,10 @@ const createBooking = async (
 
       // 4. Create the consultation record
       const consultationData: any = {
-        user: userId,
-        consultant: consultantId,
+        user: new mongoose.Types.ObjectId(userId),
+        consultant: new mongoose.Types.ObjectId(consultantId),
         bookingType: 'scheduled',
-        slotId: slotId,
+        slotId: new mongoose.Types.ObjectId(slotId),
         date: slot.date,
         startTime: slot.startTime,
         endTime: slot.endTime,
@@ -185,8 +185,8 @@ const createBooking = async (
   } else if (bookingType === 'instant') {
     // Instant booking: starts as pending
     const instantBookingData: any = {
-      user: userId,
-      consultant: consultantId,
+      user: new mongoose.Types.ObjectId(userId),
+      consultant: new mongoose.Types.ObjectId(consultantId),
       bookingType: 'instant',
       status: 'pending',
       paymentStatus: 'pending',
@@ -207,8 +207,8 @@ const createBooking = async (
 
     // Callback request: starts as pending
     const callbackBookingData: any = {
-      user: userId,
-      consultant: consultantId,
+      user: new mongoose.Types.ObjectId(userId),
+      consultant: new mongoose.Types.ObjectId(consultantId),
       bookingType: 'callback',
       preferredWindow,
       status: 'pending',
@@ -229,9 +229,9 @@ const getMyBookings = async (
 ) => {
   const filter: Record<string, any> = {};
   if (user.role === 'USER') {
-    filter.user = user.id;
+    filter.user = new mongoose.Types.ObjectId(user.id);
   } else if (user.role === 'CONSULTANT') {
-    filter.consultant = user.id;
+    filter.consultant = new mongoose.Types.ObjectId(user.id);
   }
 
   const bookingQuery = new QueryBuilder(Consultation.find(filter), query)
@@ -240,9 +240,12 @@ const getMyBookings = async (
     .paginate()
     .fields();
 
+  // Ensure user and consultant fields are always selected for population
+  bookingQuery.modelQuery.select('user consultant');
+
   const result = await bookingQuery.modelQuery.populate([
-    { path: 'user', select: 'name image avatar' },
-    { path: 'consultant', select: 'name image avatar' },
+    { path: 'user', select: 'name image avatar email' },
+    { path: 'consultant', select: 'name image avatar email' },
   ]);
   const meta = await bookingQuery.getPaginationInfo();
 
