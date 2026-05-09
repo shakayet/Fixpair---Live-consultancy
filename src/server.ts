@@ -7,6 +7,7 @@ import { seedSuperAdmin } from './DB/seedAdmin';
 import { socketHelper } from './helpers/socketHelper';
 import { errorLogger, logger } from './shared/logger';
 import process from 'process';
+import cronJobs from './app/cron';
 
 //uncaught exception
 process.on('uncaughtException', error => {
@@ -22,6 +23,9 @@ async function main() {
 
     //Seed Super Admin after database connection is successful
     await seedSuperAdmin();
+
+    // Initialize cron jobs
+    cronJobs();
 
     const port =
       typeof config.port === 'number' ? config.port : Number(config.port);

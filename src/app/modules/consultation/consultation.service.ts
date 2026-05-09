@@ -314,10 +314,29 @@ const updateBookingStatus = async (
   }
 };
 
+const deleteExpiredSlots = async () => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const result = await Availability.updateMany(
+    {},
+    {
+      $pull: {
+        slots: {
+          date: { $lt: today },
+        },
+      },
+    },
+  );
+
+  return result;
+};
+
 export const ConsultationService = {
   setAvailability,
   getAvailableSlots,
   createBooking,
   getMyBookings,
   updateBookingStatus,
+  deleteExpiredSlots,
 };

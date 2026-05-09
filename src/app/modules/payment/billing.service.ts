@@ -122,7 +122,7 @@ const attemptMinuteCharge = async (
       });
     }
 
-    // Update consultation
+    // Update consultation.........
     consultation.consumedAmount += chargeAmount;
     consultation.paymentStatus = 'paid';
     await consultation.save();
