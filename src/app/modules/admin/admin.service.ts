@@ -1,3 +1,6 @@
+/* eslint-disable no-unused-vars */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { StatusCodes } from 'http-status-codes';
 import { Transaction } from '../payment/payment.model';
 import { User } from '../user/user.model';
@@ -28,7 +31,8 @@ const getDashboardSummary = async (): Promise<IDashboardSummary> => {
     },
     { $group: { _id: null, totalDuration: { $sum: '$duration' } } },
   ]);
-  const todayConsultationTime = todayConsultationTimeResult[0]?.totalDuration || 0;
+  const todayConsultationTime =
+    todayConsultationTimeResult[0]?.totalDuration || 0;
 
   // 3. Total number of users
   const totalUsers = await User.countDocuments();
@@ -73,9 +77,23 @@ const getDashboardSummary = async (): Promise<IDashboardSummary> => {
   };
 };
 
-const getActiveConsultations = async (): Promise<{ count: number }> => {
-  const count = await VideoSession.countDocuments({ status: 'ongoing' });
-  return { count };
+const getActiveConsultations = async () => {
+  const activeSessions = await VideoSession.find({ status: 'ongoing' })
+    .populate([
+      { path: 'user', select: 'name' },
+      { path: 'consultant', select: 'name' },
+    ])
+    .select('user consultant startedAt');
+
+  const count = activeSessions.length;
+  const sessions = activeSessions.map(session => ({
+    sessionId: session._id,
+    consultantName: (session.consultant as any)?.name,
+    userName: (session.user as any)?.name,
+    startedAt: session.startedAt,
+  }));
+
+  return { count, sessions };
 };
 
 const getRevenueSummary = async (): Promise<IRevenueSummary> => {
