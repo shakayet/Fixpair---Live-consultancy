@@ -96,12 +96,14 @@ const joinSession = async (user: JwtPayload, sessionId: string) => {
 
   // Update status to ongoing if it's the first time joining
   if (session.status === 'pending') {
+    // 1. Trigger billing first (this includes the 5-minute pre-auth check)
+    // If this fails, it will throw an error and prevent session from starting
+    await BillingService.startBilling(session.consultation.toString());
+
+    // 2. Only if billing starts successfully, mark session as ongoing
     session.status = 'ongoing';
     session.startedAt = new Date();
     await session.save();
-
-    // Start billing engine
-    await BillingService.startBilling(session.consultation.toString());
   }
 
   return session;

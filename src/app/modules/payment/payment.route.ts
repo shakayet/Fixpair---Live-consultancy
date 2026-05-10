@@ -6,6 +6,12 @@ import { PaymentController } from './payment.controller';
 const router = express.Router();
 
 router.post(
+  '/webhook',
+  express.raw({ type: 'application/json' }),
+  PaymentController.handleStripeWebhook
+);
+
+router.post(
   '/create-customer',
   auth(USER_ROLES.USER),
   PaymentController.createStripeCustomer

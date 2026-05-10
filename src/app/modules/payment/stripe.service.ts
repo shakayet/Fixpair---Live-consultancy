@@ -25,8 +25,26 @@ const listCustomerPaymentMethods = async (customerId: string) => {
   return await stripe.paymentMethods.list({ customer: customerId, type: 'card' });
 };
 
+const createCharge = async (
+  customerId: string,
+  paymentMethodId: string,
+  amount: number,
+  consultationId: string,
+) => {
+  return await stripe.paymentIntents.create({
+    amount: Math.round(amount * 100), // convert to cents
+    currency: 'usd',
+    customer: customerId,
+    payment_method: paymentMethodId,
+    off_session: true,
+    confirm: true,
+    metadata: { consultationId },
+  });
+};
+
 /**
- * Pre-authorize an amount (Authorize but not capture)
+ * Authorizes a payment for future capture (Pre-auth)
+ * Used for the 5-minute affordability check at session start
  */
 const authorizePayment = async (
   customerId: string,
@@ -35,59 +53,42 @@ const authorizePayment = async (
   consultationId: string
 ) => {
   return await stripe.paymentIntents.create({
-    amount: Math.round(amount * 100), // Stripe expects cents
-    currency: config.payment.stripe.currency,
+    amount: Math.round(amount * 100),
+    currency: 'usd',
     customer: customerId,
     payment_method: paymentMethodId,
-    capture_method: 'manual',
+    off_session: true,
     confirm: true,
-    setup_future_usage: 'off_session',
+    capture_method: 'manual', // This makes it an authorization
     metadata: { consultationId },
-    // For automatic payment methods like Apple/Google Pay
-    automatic_payment_methods: { enabled: true, allow_redirects: 'never' },
   });
 };
 
 /**
- * Capture a previously authorized payment
+ * Captures a previously authorized payment
  */
-const capturePayment = async (paymentIntentId: string, amount: number) => {
+const capturePayment = async (
+  paymentIntentId: string,
+  amount: number
+) => {
   return await stripe.paymentIntents.capture(paymentIntentId, {
     amount_to_capture: Math.round(amount * 100),
   });
 };
 
 /**
- * Direct charge (for per-minute strategy)
+ * Voids a previously authorized payment (cancels the hold)
  */
-const createCharge = async (
-  customerId: string,
-  paymentMethodId: string,
-  amount: number,
-  consultationId: string
-) => {
-  return await stripe.paymentIntents.create({
-    amount: Math.round(amount * 100),
-    currency: config.payment.stripe.currency,
-    customer: customerId,
-    payment_method: paymentMethodId,
-    confirm: true,
-    off_session: true,
-    metadata: { consultationId },
-  });
-};
-
 const voidAuthorization = async (paymentIntentId: string) => {
   return await stripe.paymentIntents.cancel(paymentIntentId);
 };
 
 export const StripeService = {
+  stripe,
   createCustomer,
   attachPaymentMethod,
-  listCustomerPaymentMethods,
+  createCharge,
   authorizePayment,
   capturePayment,
-  createCharge,
-  voidAuthorization,
-  stripe, // Export raw instance for webhooks
+  voidAuthorization
 };

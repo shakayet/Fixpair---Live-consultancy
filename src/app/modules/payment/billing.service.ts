@@ -31,6 +31,7 @@ const activeSessions = new Map<
     paymentMethodId: string;
     provider: 'stripe' | 'paypal';
     timer: NodeJS.Timeout;
+    preAuthIntentId?: string;
   }
 >();
 
@@ -46,6 +47,13 @@ const startBilling = async (consultationId: string) => {
   if (!user || !consultant)
     throw new ApiError(StatusCodes.NOT_FOUND, 'Participants not found');
 
+  if (!user.stripeCustomerId) {
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      'User must have a Stripe account',
+    );
+  }
+
   // Find default payment method
   const defaultMethod =
     user.paymentMethods?.find(m => m.isDefault) || user.paymentMethods?.[0];
@@ -57,15 +65,33 @@ const startBilling = async (consultationId: string) => {
 
   const perMinuteRate = consultant.perMinuteRate || 0;
   const platformFee = config.payment.billing.platformFee;
+  const minMinutes = 5; // Business requirement: afford at least 5 minutes
+  const preAuthAmount = platformFee + perMinuteRate * minMinutes;
+
+  // 1. Pre-authorize the amount (affordability check)
+  let preAuthIntent;
+  try {
+    preAuthIntent = await StripeService.authorizePayment(
+      user.stripeCustomerId,
+      defaultMethod.methodId,
+      preAuthAmount,
+      consultationId,
+    );
+  } catch (error: any) {
+    throw new ApiError(
+      StatusCodes.PAYMENT_REQUIRED,
+      `Insufficient funds or card error: ${error.message}`,
+    );
+  }
 
   // Initialize consultation billing state
   consultation.billingStatus = 'charging';
   consultation.platformFee = platformFee;
   consultation.perMinuteRate = perMinuteRate;
-  consultation.consumedAmount = 0; // Start at 0, charged in attemptMinuteCharge
+  consultation.consumedAmount = 0;
   await consultation.save();
 
-  // Start per-minute timer first to ensure sessionData is available
+  // Start per-minute timer
   const timer = setInterval(async () => {
     await attemptMinuteCharge(consultationId);
   }, 60000); // 1 minute
@@ -79,9 +105,10 @@ const startBilling = async (consultationId: string) => {
     paymentMethodId: defaultMethod.methodId,
     provider: defaultMethod.provider,
     timer,
+    preAuthIntentId: preAuthIntent.id,
   });
 
-  // Initial charge for platform fee + 1st minute
+  // Initial charge for platform fee + 1st minute (captured from pre-auth)
   await attemptMinuteCharge(consultationId, true);
 };
 
@@ -103,23 +130,43 @@ const attemptMinuteCharge = async (
   try {
     let transaction;
     if (sessionData.provider === 'stripe') {
-      const paymentIntent = await StripeService.createCharge(
-        (consultation.user as any).stripeCustomerId,
-        sessionData.paymentMethodId,
-        chargeAmount,
-        consultationId,
-      );
+      if (isInitial && sessionData.preAuthIntentId) {
+        // Capture part of the pre-authorized amount for the first minute
+        const capture = await StripeService.capturePayment(
+          sessionData.preAuthIntentId,
+          chargeAmount,
+        );
 
-      transaction = await Transaction.create({
-        consultation: consultationId,
-        user: (consultation.user as any)._id,
-        consultant: consultation.consultant,
-        provider: 'stripe',
-        transactionId: paymentIntent.id,
-        amount: chargeAmount,
-        status: 'captured',
-        type: 'charge',
-      });
+        transaction = await Transaction.create({
+          consultation: consultationId,
+          user: (consultation.user as any)._id,
+          consultant: consultation.consultant,
+          provider: 'stripe',
+          transactionId: capture.id,
+          amount: chargeAmount,
+          status: 'captured',
+          type: 'charge',
+        });
+      } else {
+        // Subsequent per-minute direct charges
+        const paymentIntent = await StripeService.createCharge(
+          (consultation.user as any).stripeCustomerId,
+          sessionData.paymentMethodId,
+          chargeAmount,
+          consultationId,
+        );
+
+        transaction = await Transaction.create({
+          consultation: consultationId,
+          user: (consultation.user as any)._id,
+          consultant: consultation.consultant,
+          provider: 'stripe',
+          transactionId: paymentIntent.id,
+          amount: chargeAmount,
+          status: 'captured',
+          type: 'charge',
+        });
+      }
     }
 
     // Update consultation.........
@@ -139,8 +186,6 @@ const attemptMinuteCharge = async (
     );
   } catch (error) {
     console.error(`Billing failed for ${consultationId}:`, error);
-
-    // Handle retry logic or terminate
     await handlePaymentFailure(consultationId);
   }
 };
@@ -153,6 +198,14 @@ const handlePaymentFailure = async (consultationId: string) => {
   consultation.terminationReason = 'insufficient_funds';
   consultation.status = 'cancelled';
   await consultation.save();
+
+  // Void any remaining authorization
+  const sessionData = activeSessions.get(consultationId);
+  if (sessionData?.preAuthIntentId) {
+    await StripeService.voidAuthorization(sessionData.preAuthIntentId).catch(
+      console.error,
+    );
+  }
 
   // Stop timer and notify
   stopBilling(consultationId);
@@ -167,10 +220,18 @@ const handlePaymentFailure = async (consultationId: string) => {
   );
 };
 
-const stopBilling = (consultationId: string) => {
+const stopBilling = async (consultationId: string) => {
   const sessionData = activeSessions.get(consultationId);
   if (sessionData) {
     clearInterval(sessionData.timer);
+
+    // Void any remaining authorization when session ends normally
+    if (sessionData.preAuthIntentId) {
+      await StripeService.voidAuthorization(sessionData.preAuthIntentId).catch(
+        console.error,
+      );
+    }
+
     activeSessions.delete(consultationId);
   }
 };
