@@ -10,6 +10,7 @@ import { PrivacyRoutes } from '../app/modules/privacy/privacy.route';
 import { ReportRoutes } from '../app/modules/report/report.route';
 import { VideoSessionRoutes } from '../app/modules/videoSession/videoSession.route';
 import { PaymentRoutes } from '../app/modules/payment/payment.route';
+import { AdminRoutes } from '../app/modules/admin/admin.route';
 const router = express.Router();
 
 const apiRoutes = [
@@ -56,6 +57,10 @@ const apiRoutes = [
   {
     path: '/payment',
     route: PaymentRoutes,
+  },
+  {
+    path: '/admin',
+    route: AdminRoutes,
   },
 ];
 
