@@ -22,6 +22,10 @@ const reportSchema = new Schema<IReport>(
       type: String,
       required: true,
     },
+    duration: {
+      type: Number,
+      default: 0,
+    },
     notes: {
       type: String,
     },

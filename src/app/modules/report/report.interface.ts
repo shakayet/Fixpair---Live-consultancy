@@ -5,6 +5,7 @@ export type IReport = {
   user: Types.ObjectId;
   consultant: Types.ObjectId;
   conversation: string;
+  duration?: number;
   notes?: string;
   images?: string[];
   links?: string[];

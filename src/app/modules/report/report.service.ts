@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 /* eslint-disable no-unused-vars */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable no-undef */
@@ -14,6 +15,7 @@ import { Consultation } from '../consultation/consultation.model';
 import { User } from '../user/user.model';
 import { IReport } from './report.interface';
 import { Report } from './report.model';
+import { VideoSession } from '../videoSession/videoSession.model';
 
 const generateConsultationPDF = async (reportData: any): Promise<string> => {
   return new Promise((resolve, reject) => {
@@ -54,7 +56,7 @@ const generateConsultationPDF = async (reportData: any): Promise<string> => {
         .text('Confidential Consultation Record', 50, 75);
 
       // Info Section
-      doc.roundedRect(50, 140, 512, 80, 5).strokeColor('#dee2e6').stroke();
+      doc.roundedRect(50, 140, 512, 100, 5).strokeColor('#dee2e6').stroke();
 
       doc.fillColor(primaryColor).font('Helvetica-Bold').fontSize(11);
       doc.text('Date:', 70, 155);
@@ -71,6 +73,15 @@ const generateConsultationPDF = async (reportData: any): Promise<string> => {
       );
       doc.text(reportData.userName, 150, 175);
       doc.text(reportData.consultantName, 150, 195);
+
+      if (reportData.duration) {
+        doc.fillColor(primaryColor).font('Helvetica-Bold');
+        doc.text('Duration:', 70, 215);
+        doc.font('Helvetica').fillColor(secondaryColor);
+        const minutes = Math.floor(reportData.duration / 60);
+        const seconds = reportData.duration % 60;
+        doc.text(`${minutes}m ${seconds}s`, 150, 215);
+      }
 
       // Conversation History
       doc.moveDown(4);
@@ -272,6 +283,12 @@ const createReport = async (user: JwtPayload, payload: any, files: any) => {
       .join(' ');
   }
 
+  // Fetch duration from VideoSession
+  const videoSession = await VideoSession.findOne({
+    consultation: consultationId,
+  });
+  const duration = videoSession?.duration || 0;
+
   const imageFiles = [...(files?.image || []), ...(files?.images || [])];
   const images = imageFiles.map((file: any) => `/image/${file.filename}`);
 
@@ -283,6 +300,7 @@ const createReport = async (user: JwtPayload, payload: any, files: any) => {
     consultantName: (consultation.consultant as any).name,
     consultantEmail: (consultation.consultant as any).email,
     conversation: finalConversation,
+    duration,
     notes,
     links: links ? (typeof links === 'string' ? [links] : links) : [],
     images,
@@ -295,6 +313,7 @@ const createReport = async (user: JwtPayload, payload: any, files: any) => {
     user: consultation.user._id,
     consultant: consultation.consultant._id,
     conversation: finalConversation,
+    duration,
     notes,
     links: reportData.links,
     images,
@@ -320,10 +339,13 @@ const getReports = async (user: JwtPayload, query: Record<string, unknown>) => {
     .paginate()
     .fields();
 
+  // Limit fields for list view: exclude conversation
+  reportQuery.modelQuery.select('-conversation');
+
   const result = await reportQuery.modelQuery.populate([
-    { path: 'user', select: 'name email image avatar' },
-    { path: 'consultant', select: 'name email image avatar' },
-    { path: 'consultation' },
+    { path: 'user', select: 'name image avatar' },
+    { path: 'consultant', select: 'name image avatar' },
+    { path: 'consultation', select: 'status date bookingType duration' },
   ]);
   const meta = await reportQuery.getPaginationInfo();
 
@@ -332,9 +354,12 @@ const getReports = async (user: JwtPayload, query: Record<string, unknown>) => {
 
 const getSingleReport = async (user: JwtPayload, id: string) => {
   const report = await Report.findById(id).populate([
-    { path: 'user', select: 'name email image avatar' },
-    { path: 'consultant', select: 'name email image avatar' },
-    { path: 'consultation' },
+    { path: 'user', select: 'name image avatar' },
+    { path: 'consultant', select: 'name image avatar' },
+    {
+      path: 'consultation',
+      select: 'status date bookingType perMinuteRate totalAmount',
+    },
   ]);
 
   if (!report) {

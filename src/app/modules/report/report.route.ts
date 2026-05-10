@@ -1,3 +1,5 @@
+/* eslint-disable no-unused-vars */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import express from 'express';
 import { NextFunction, Request, Response } from 'express';
 import { USER_ROLES } from '../../../enums/user';
