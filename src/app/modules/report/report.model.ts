@@ -18,13 +18,10 @@ const reportSchema = new Schema<IReport>(
       ref: 'User',
       required: true,
     },
-    conversation: [
-      {
-        sender: { type: String, enum: ['user', 'consultant'], required: true },
-        text: { type: String, required: true },
-        timestamp: { type: Date, default: Date.now },
-      },
-    ],
+    conversation: {
+      type: String,
+      required: true,
+    },
     notes: {
       type: String,
     },

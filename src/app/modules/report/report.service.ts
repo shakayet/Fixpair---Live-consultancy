@@ -1,3 +1,7 @@
+/* eslint-disable no-unused-vars */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable no-undef */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { StatusCodes } from 'http-status-codes';
 import { JwtPayload } from 'jsonwebtoken';
 import mongoose from 'mongoose';
@@ -17,41 +21,45 @@ const generateConsultationPDF = async (reportData: any): Promise<string> => {
       const doc = new PDFDocument();
       const fileName = `report-${reportData.consultationId}-${Date.now()}.pdf`;
       const uploadDir = path.join(process.cwd(), 'uploads', 'reports');
-      
+
       if (!fs.existsSync(uploadDir)) {
         fs.mkdirSync(uploadDir, { recursive: true });
       }
-      
+
       const filePath = path.join(uploadDir, fileName);
       const stream = fs.createWriteStream(filePath);
-      
+
       doc.pipe(stream);
-      
+
       // Add content to PDF
       doc.fontSize(20).text('Consultation Summary Report', { align: 'center' });
       doc.moveDown();
-      
-      doc.fontSize(12).text(`Date: ${new Date(reportData.date).toLocaleString()}`);
+
+      doc
+        .fontSize(12)
+        .text(
+          `Date: ${reportData.date ? new Date(reportData.date).toLocaleString() : new Date().toLocaleString()}`,
+        );
       doc.text(`Client: ${reportData.userName} (${reportData.userEmail})`);
-      doc.text(`Consultant: ${reportData.consultantName} (${reportData.consultantEmail})`);
+      doc.text(
+        `Consultant: ${reportData.consultantName} (${reportData.consultantEmail})`,
+      );
       doc.moveDown();
-      
+
       doc.fontSize(16).text('Conversation History');
       doc.moveDown(0.5);
-      
-      reportData.conversation.forEach((msg: any) => {
-        const sender = msg.sender === 'user' ? reportData.userName : reportData.consultantName;
-        doc.fontSize(10).text(`${sender} [${new Date(msg.timestamp).toLocaleTimeString()}]:`, { continued: true });
-        doc.fontSize(10).text(` ${msg.text}`);
-        doc.moveDown(0.2);
-      });
-      
+
+      doc
+        .fontSize(10)
+        .text(reportData.conversation || 'No conversation recorded');
+      doc.moveDown();
+
       if (reportData.notes) {
         doc.moveDown();
         doc.fontSize(16).text('Consultant Notes');
         doc.fontSize(10).text(reportData.notes);
       }
-      
+
       if (reportData.links && reportData.links.length > 0) {
         doc.moveDown();
         doc.fontSize(16).text('Shared Links');
@@ -61,16 +69,16 @@ const generateConsultationPDF = async (reportData: any): Promise<string> => {
         doc.fillColor('black');
       }
 
-      // Note: Images would require downloading them first if they are URLs, 
+      // Note: Images would require downloading them first if they are URLs,
       // or using local paths if they are stored locally.
-      
+
       doc.end();
-      
+
       stream.on('finish', () => {
         resolve(`/reports/${fileName}`);
       });
-      
-      stream.on('error', (err) => {
+
+      stream.on('error', err => {
         reject(err);
       });
     } catch (error) {
@@ -81,30 +89,60 @@ const generateConsultationPDF = async (reportData: any): Promise<string> => {
 
 const createReport = async (user: JwtPayload, payload: any, files: any) => {
   const { consultationId, notes, links } = payload;
-  
-  const consultation = await Consultation.findById(consultationId).populate('user consultant');
+
+  const consultation =
+    await Consultation.findById(consultationId).populate('user consultant');
   if (!consultation) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Consultation not found');
   }
-  
+
   if (consultation.status !== 'completed') {
-    throw new ApiError(StatusCodes.BAD_REQUEST, 'Report can only be generated for completed consultations');
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      'Report can only be generated for completed consultations',
+    );
   }
-  
+
   if (consultation.consultant._id.toString() !== user.id) {
-    throw new ApiError(StatusCodes.FORBIDDEN, 'Only the assigned consultant can finalize the report');
+    throw new ApiError(
+      StatusCodes.FORBIDDEN,
+      'Only the assigned consultant can finalize the report',
+    );
   }
 
   // Mock conversation capture from external API
   // In a real scenario, you would fetch this from your chat service/database
   const mockConversation = [
-    { sender: 'user', text: 'Hello, I need some advice on my case.', timestamp: new Date(Date.now() - 1000 * 60 * 30) },
-    { sender: 'consultant', text: 'Sure, I can help with that. Please tell me more.', timestamp: new Date(Date.now() - 1000 * 60 * 25) },
-    { sender: 'user', text: 'It is about a contract dispute.', timestamp: new Date(Date.now() - 1000 * 60 * 20) },
-    { sender: 'consultant', text: 'I see. I will review the documents and get back to you.', timestamp: new Date(Date.now() - 1000 * 60 * 15) },
+    {
+      sender: 'user',
+      text: 'Hello, I need some advice on my case.',
+      timestamp: new Date(Date.now() - 1000 * 60 * 30),
+    },
+    {
+      sender: 'consultant',
+      text: 'Sure, I can help with that. Please tell me more.',
+      timestamp: new Date(Date.now() - 1000 * 60 * 25),
+    },
+    {
+      sender: 'user',
+      text: 'It is about a contract dispute.',
+      timestamp: new Date(Date.now() - 1000 * 60 * 20),
+    },
+    {
+      sender: 'consultant',
+      text: 'I see. I will review the documents and get back to you.',
+      timestamp: new Date(Date.now() - 1000 * 60 * 15),
+    },
   ];
 
-  const images = files?.images ? files.images.map((file: any) => `/reports/images/${file.filename}`) : [];
+  // Format conversation as a single plain text block
+  const formattedConversation = mockConversation
+    .map(msg => `${msg.sender}: ${msg.text}`)
+    .join(' ');
+
+  const images = files?.image
+    ? files.image.map((file: any) => `/image/${file.filename}`)
+    : [];
 
   const reportData = {
     consultationId: consultation._id,
@@ -113,10 +151,10 @@ const createReport = async (user: JwtPayload, payload: any, files: any) => {
     userEmail: (consultation.user as any).email,
     consultantName: (consultation.consultant as any).name,
     consultantEmail: (consultation.consultant as any).email,
-    conversation: mockConversation,
+    conversation: formattedConversation,
     notes,
     links: links ? (typeof links === 'string' ? [links] : links) : [],
-    images
+    images,
   };
 
   const pdfUrl = await generateConsultationPDF(reportData);
@@ -125,11 +163,11 @@ const createReport = async (user: JwtPayload, payload: any, files: any) => {
     consultation: consultationId,
     user: consultation.user._id,
     consultant: consultation.consultant._id,
-    conversation: mockConversation,
+    conversation: formattedConversation,
     notes,
     links: reportData.links,
     images,
-    pdfUrl
+    pdfUrl,
   });
 
   return report;
@@ -137,7 +175,7 @@ const createReport = async (user: JwtPayload, payload: any, files: any) => {
 
 const getReports = async (user: JwtPayload, query: Record<string, unknown>) => {
   const filter: any = {};
-  
+
   if (user.role === 'USER') {
     filter.user = user.id;
   } else if (user.role === 'CONSULTANT') {
@@ -154,7 +192,7 @@ const getReports = async (user: JwtPayload, query: Record<string, unknown>) => {
   const result = await reportQuery.modelQuery.populate([
     { path: 'user', select: 'name email image avatar' },
     { path: 'consultant', select: 'name email image avatar' },
-    { path: 'consultation' }
+    { path: 'consultation' },
   ]);
   const meta = await reportQuery.getPaginationInfo();
 
@@ -165,9 +203,9 @@ const getSingleReport = async (user: JwtPayload, id: string) => {
   const report = await Report.findById(id).populate([
     { path: 'user', select: 'name email image avatar' },
     { path: 'consultant', select: 'name email image avatar' },
-    { path: 'consultation' }
+    { path: 'consultation' },
   ]);
-  
+
   if (!report) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Report not found');
   }
@@ -176,7 +214,10 @@ const getSingleReport = async (user: JwtPayload, id: string) => {
   if (user.role === 'USER' && report.user._id.toString() !== user.id) {
     throw new ApiError(StatusCodes.FORBIDDEN, 'Access denied');
   }
-  if (user.role === 'CONSULTANT' && report.consultant._id.toString() !== user.id) {
+  if (
+    user.role === 'CONSULTANT' &&
+    report.consultant._id.toString() !== user.id
+  ) {
     throw new ApiError(StatusCodes.FORBIDDEN, 'Access denied');
   }
 
@@ -186,5 +227,5 @@ const getSingleReport = async (user: JwtPayload, id: string) => {
 export const ReportService = {
   createReport,
   getReports,
-  getSingleReport
+  getSingleReport,
 };
