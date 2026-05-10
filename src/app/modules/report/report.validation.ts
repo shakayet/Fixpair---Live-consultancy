@@ -5,6 +5,7 @@ const createReportZodSchema = z.object({
     consultationId: z.string({
       required_error: 'Consultation ID is required',
     }),
+    conversation: z.string().optional(),
     notes: z.string().optional(),
     links: z.array(z.string()).optional(),
   }),

@@ -144,6 +144,51 @@ const generateConsultationPDF = async (reportData: any): Promise<string> => {
         });
       }
 
+      // Attached Images
+      if (reportData.images && reportData.images.length > 0) {
+        doc.moveDown(2);
+        doc
+          .fillColor(accentColor)
+          .font('Helvetica-Bold')
+          .fontSize(14)
+          .text('Attached Images');
+        doc
+          .moveTo(50, doc.y + 5)
+          .lineTo(562, doc.y + 5)
+          .strokeColor('#e9ecef')
+          .stroke();
+        doc.moveDown(1.5);
+
+        reportData.images.forEach((imgUrl: string) => {
+          // Resolve local path from URL: /image/filename.jpg -> uploads/image/filename.jpg
+          const fileName = path.basename(imgUrl);
+          const localPath = path.join(
+            process.cwd(),
+            'uploads',
+            'image',
+            fileName,
+          );
+
+          if (fs.existsSync(localPath)) {
+            try {
+              // Check if we need a new page for the image (approximate image height 300)
+              if (doc.y + 300 > 700) {
+                doc.addPage();
+              }
+
+              // Add image with a maximum width to fit the page
+              doc.image(localPath, {
+                fit: [512, 300],
+                align: 'center',
+              });
+              doc.moveDown(1);
+            } catch (err) {
+              console.error(`Failed to add image to PDF: ${localPath}`, err);
+            }
+          }
+        });
+      }
+
       // Footer
       const pageCount = doc.bufferedPageRange().count;
       doc
@@ -172,7 +217,7 @@ const generateConsultationPDF = async (reportData: any): Promise<string> => {
 };
 
 const createReport = async (user: JwtPayload, payload: any, files: any) => {
-  const { consultationId, notes, links } = payload;
+  const { consultationId, notes, links, conversation } = payload;
 
   const consultation =
     await Consultation.findById(consultationId).populate('user consultant');
@@ -194,39 +239,41 @@ const createReport = async (user: JwtPayload, payload: any, files: any) => {
     );
   }
 
-  // Mock conversation capture from external API
-  // In a real scenario, you would fetch this from your chat service/database
-  const mockConversation = [
-    {
-      sender: 'user',
-      text: 'Hello, I need some advice on my case.',
-      timestamp: new Date(Date.now() - 1000 * 60 * 30),
-    },
-    {
-      sender: 'consultant',
-      text: 'Sure, I can help with that. Please tell me more.',
-      timestamp: new Date(Date.now() - 1000 * 60 * 25),
-    },
-    {
-      sender: 'user',
-      text: 'It is about a contract dispute.',
-      timestamp: new Date(Date.now() - 1000 * 60 * 20),
-    },
-    {
-      sender: 'consultant',
-      text: 'I see. I will review the documents and get back to you.',
-      timestamp: new Date(Date.now() - 1000 * 60 * 15),
-    },
-  ];
+  // Use conversation from payload if provided, otherwise fallback to mock
+  let finalConversation = conversation;
 
-  // Format conversation as a single plain text block
-  const formattedConversation = mockConversation
-    .map(msg => `${msg.sender}: ${msg.text}`)
-    .join(' ');
+  if (!finalConversation) {
+    // Mock conversation capture from external API
+    const mockConversation = [
+      {
+        sender: 'user',
+        text: 'Hello, I need some advice on my case.',
+        timestamp: new Date(Date.now() - 1000 * 60 * 30),
+      },
+      {
+        sender: 'consultant',
+        text: 'Sure, I can help with that. Please tell me more.',
+        timestamp: new Date(Date.now() - 1000 * 60 * 25),
+      },
+      {
+        sender: 'user',
+        text: 'It is about a contract dispute.',
+        timestamp: new Date(Date.now() - 1000 * 60 * 20),
+      },
+      {
+        sender: 'consultant',
+        text: 'I see. I will review the documents and get back to you.',
+        timestamp: new Date(Date.now() - 1000 * 60 * 15),
+      },
+    ];
 
-  const images = files?.image
-    ? files.image.map((file: any) => `/image/${file.filename}`)
-    : [];
+    finalConversation = mockConversation
+      .map(msg => `${msg.sender}: ${msg.text}`)
+      .join(' ');
+  }
+
+  const imageFiles = [...(files?.image || []), ...(files?.images || [])];
+  const images = imageFiles.map((file: any) => `/image/${file.filename}`);
 
   const reportData = {
     consultationId: consultation._id,
@@ -235,7 +282,7 @@ const createReport = async (user: JwtPayload, payload: any, files: any) => {
     userEmail: (consultation.user as any).email,
     consultantName: (consultation.consultant as any).name,
     consultantEmail: (consultation.consultant as any).email,
-    conversation: formattedConversation,
+    conversation: finalConversation,
     notes,
     links: links ? (typeof links === 'string' ? [links] : links) : [],
     images,
@@ -247,7 +294,7 @@ const createReport = async (user: JwtPayload, payload: any, files: any) => {
     consultation: consultationId,
     user: consultation.user._id,
     consultant: consultation.consultant._id,
-    conversation: formattedConversation,
+    conversation: finalConversation,
     notes,
     links: reportData.links,
     images,
