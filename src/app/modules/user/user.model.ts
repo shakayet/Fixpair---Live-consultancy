@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import bcrypt from 'bcrypt';
 import { StatusCodes } from 'http-status-codes';
 import { model, Schema } from 'mongoose';
@@ -135,7 +136,7 @@ const userSchema = new Schema<IUser, UserModal>(
   {
     timestamps: true,
     toJSON: {
-      transform(doc, ret) {
+      transform(doc, ret: any) {
         delete ret.authentication;
         delete ret.password;
         delete ret.paymentMethods;
@@ -143,7 +144,7 @@ const userSchema = new Schema<IUser, UserModal>(
       },
     },
     toObject: {
-      transform(doc, ret) {
+      transform(doc, ret: any) {
         delete ret.authentication;
         delete ret.password;
         delete ret.paymentMethods;

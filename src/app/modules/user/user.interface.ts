@@ -10,7 +10,7 @@ export type IUser = {
   role: USER_ROLES;
   contact?: string;
   email: string;
-  password: string;
+  password?: string;
   location?: string;
   image?: string;
   avatar?: string;
