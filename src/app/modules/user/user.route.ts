@@ -62,6 +62,17 @@ router
   );
 
 router.get(
+  '/consultants',
+  auth(
+    USER_ROLES.SUPER_ADMIN,
+    USER_ROLES.ADMIN,
+    USER_ROLES.USER,
+    USER_ROLES.CONSULTANT,
+  ),
+  UserController.getConsultants,
+);
+
+router.get(
   '/:id',
   auth(
     USER_ROLES.SUPER_ADMIN,

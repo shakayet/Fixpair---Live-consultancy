@@ -149,6 +149,34 @@ const getSingleUserFromDB = async (id: string): Promise<Partial<IUser>> => {
   return userObj;
 };
 
+const getConsultantsFromDB = async (query: Record<string, unknown>) => {
+  // Add hardcoded filter for role: CONSULTANT
+  const consultantQuery = new QueryBuilder(
+    User.find({ role: USER_ROLES.CONSULTANT, status: 'active' }).select(
+      '-authentication -password -paymentMethods',
+    ),
+    query,
+  )
+    .search(['name', 'email', 'expertise'])
+    .filter() // This will handle ?consultancyType=doctor etc
+    .sort()
+    .paginate()
+    .fields();
+
+  const result = await consultantQuery.modelQuery.lean();
+  const meta = await consultantQuery.getPaginationInfo();
+
+  // Attach stats for all found consultants
+  const resultWithStats = await Promise.all(
+    result.map(async (user: any) => {
+      const stats = await ReviewService.getConsultantStats(user._id.toString());
+      return { ...user, stats };
+    }),
+  );
+
+  return { result: resultWithStats, meta };
+};
+
 export const UserService = {
   getAllUsersToDB,
   createUserToDB,
@@ -156,4 +184,5 @@ export const UserService = {
   updateProfileToDB,
   deleteAccountFromDB,
   getSingleUserFromDB,
+  getConsultantsFromDB,
 };

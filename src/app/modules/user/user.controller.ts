@@ -91,6 +91,18 @@ const getSingleUser = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const getConsultants = catchAsync(async (req: Request, res: Response) => {
+  const result = await UserService.getConsultantsFromDB(req.query);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'Consultants retrieved successfully',
+    pagination: result.meta,
+    data: result.result,
+  });
+});
+
 export const UserController = {
   getAllUsers,
   createUser,
@@ -98,4 +110,5 @@ export const UserController = {
   updateProfile,
   deleteAccount,
   getSingleUser,
+  getConsultants,
 };
