@@ -48,7 +48,12 @@ router
 router
   .route('/')
   .get(
-    auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN),
+    auth(
+      USER_ROLES.ADMIN,
+      USER_ROLES.SUPER_ADMIN,
+      USER_ROLES.USER,
+      USER_ROLES.CONSULTANT,
+    ),
     UserController.getAllUsers,
   )
   .post(
