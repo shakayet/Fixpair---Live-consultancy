@@ -47,6 +47,12 @@ const resendOtpZodSchema = z.object({
   }),
 });
 
+const createRefreshTokenZodSchema = z.object({
+  cookies: z.object({
+    refreshToken: z.string({ required_error: 'Refresh token is required' }),
+  }),
+});
+
 export const AuthValidation = {
   createVerifyEmailZodSchema,
   createForgetPasswordZodSchema,
@@ -54,4 +60,5 @@ export const AuthValidation = {
   createResetPasswordZodSchema,
   createChangePasswordZodSchema,
   resendOtpZodSchema,
+  createRefreshTokenZodSchema,
 };

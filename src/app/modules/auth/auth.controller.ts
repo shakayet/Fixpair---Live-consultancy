@@ -5,6 +5,7 @@ import sendResponse from '../../../shared/sendResponse';
 import { AuthService } from './auth.service';
 import { JwtPayload } from 'jsonwebtoken';
 import ApiError from '../../../errors/ApiError';
+import config from '../../../config';
 
 const verifyEmail = catchAsync(async (req: Request, res: Response) => {
   const { ...verifyData } = req.body;
@@ -22,13 +23,23 @@ const loginUser = catchAsync(async (req: Request, res: Response) => {
   const { ...loginData } = req.body;
   const result = await AuthService.loginUserFromDB(loginData);
 
+  const { refreshToken, accessToken } = result;
+
+  // set refresh token into cookie
+  const cookieOptions = {
+    secure: config.env === 'production',
+    httpOnly: true,
+  };
+
+  res.cookie('refreshToken', refreshToken, cookieOptions);
+
   sendResponse(res, {
     success: true,
     statusCode: StatusCodes.OK,
     message: 'User logged in successfully.',
     data: {
-      accessToken: result.accessToken,
-      refreshToken: result.refreshToken,
+      accessToken,
+      refreshToken,
     },
   });
 });
@@ -101,11 +112,24 @@ const changePassword = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const refreshToken = catchAsync(async (req: Request, res: Response) => {
+  const { refreshToken } = req.cookies;
+  const result = await AuthService.refreshToken(refreshToken);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'Access token generated successfully!',
+    data: result,
+  });
+});
+
 export const AuthController = {
   verifyEmail,
   loginUser,
   forgetPassword,
+  resendOtp,
   resetPassword,
   changePassword,
-  resendOtp,
+  refreshToken,
 };

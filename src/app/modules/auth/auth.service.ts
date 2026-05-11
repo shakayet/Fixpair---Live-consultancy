@@ -45,7 +45,7 @@ const loginUserFromDB = async (payload: ILoginData) => {
   //check match password
   if (
     password &&
-    !(await User.isMatchPassword(password, isExistUser.password))
+    !(await User.isMatchPassword(password!, isExistUser.password!))
   ) {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'Password is incorrect!');
   }
@@ -243,7 +243,7 @@ const changePasswordToDB = async (
   //current password match
   if (
     currentPassword &&
-    !(await User.isMatchPassword(currentPassword, isExistUser.password))
+!(await User.isMatchPassword(currentPassword, isExistUser.password!))
   ) {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'Password is incorrect');
   }
@@ -337,6 +337,38 @@ const resendOtpToDB = async (email: string) => {
   return { message: 'OTP resent successfully, please check your email' };
 };
 
+const refreshToken = async (token: string) => {
+  let verifiedToken = null;
+  try {
+    verifiedToken = jwtHelper.verifyToken(
+      token,
+      config.jwt.jwt_refresh_secret as Secret,
+    );
+  } catch (err) {
+    throw new ApiError(StatusCodes.FORBIDDEN, 'Invalid Refresh Token');
+  }
+
+  const { id } = verifiedToken;
+
+  const isExistUser = await User.findById(id);
+  if (!isExistUser) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
+  }
+
+  //create access token
+  const accessToken = jwtHelper.createToken(
+    {
+      id: isExistUser._id.toString(),
+      role: isExistUser.role,
+      email: isExistUser.email,
+    },
+    config.jwt.jwt_secret as Secret,
+    config.jwt.jwt_expire_in as string,
+  );
+
+  return { accessToken };
+};
+
 export const AuthService = {
   verifyEmailToDB,
   loginUserFromDB,
@@ -344,4 +376,5 @@ export const AuthService = {
   resetPasswordToDB,
   changePasswordToDB,
   resendOtpToDB,
+  refreshToken,
 };
