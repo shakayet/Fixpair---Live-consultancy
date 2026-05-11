@@ -29,4 +29,10 @@ router.get(
   AdminController.getAllTransactions,
 );
 
+router.get(
+  '/revenue-trend',
+  auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN),
+  AdminController.getRevenueTrend,
+);
+
 export const AdminRoutes = router;

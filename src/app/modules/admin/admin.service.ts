@@ -149,9 +149,71 @@ const getAllTransactions = async (query: Record<string, unknown>) => {
   };
 };
 
+const getRevenueTrend = async () => {
+  const twelveMonthsAgo = new Date();
+  twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 11);
+  twelveMonthsAgo.setDate(1);
+  twelveMonthsAgo.setHours(0, 0, 0, 0);
+
+  const revenueData = await Transaction.aggregate([
+    {
+      $match: {
+        status: 'captured',
+        createdAt: { $gte: twelveMonthsAgo },
+      },
+    },
+    {
+      $group: {
+        _id: {
+          year: { $year: '$createdAt' },
+          month: { $month: '$createdAt' },
+        },
+        revenue: { $sum: '$amount' },
+      },
+    },
+    { $sort: { '_id.year': 1, '_id.month': 1 } },
+  ]);
+
+  // Generate last 12 months array with 0 revenue as default
+  const monthNames = [
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
+  ];
+
+  const trend = [];
+  for (let i = 0; i < 12; i++) {
+    const d = new Date();
+    d.setMonth(d.getMonth() - (11 - i));
+    const year = d.getFullYear();
+    const month = d.getMonth() + 1; // JS months are 0-indexed
+
+    const match = revenueData.find(
+      item => item._id.year === year && item._id.month === month,
+    );
+
+    trend.push({
+      month: monthNames[month - 1],
+      revenue: match ? match.revenue : 0,
+    });
+  }
+
+  return trend;
+};
+
 export const AdminService = {
   getDashboardSummary,
   getActiveConsultations,
   getRevenueSummary,
   getAllTransactions,
+  getRevenueTrend,
 };

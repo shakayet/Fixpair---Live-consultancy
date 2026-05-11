@@ -15,16 +15,18 @@ const getDashboardSummary = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-const getActiveConsultations = catchAsync(async (req: Request, res: Response) => {
-  const result = await AdminService.getActiveConsultations();
+const getActiveConsultations = catchAsync(
+  async (req: Request, res: Response) => {
+    const result = await AdminService.getActiveConsultations();
 
-  sendResponse(res, {
-    success: true,
-    statusCode: StatusCodes.OK,
-    message: 'Active consultations count retrieved successfully',
-    data: result,
-  });
-});
+    sendResponse(res, {
+      success: true,
+      statusCode: StatusCodes.OK,
+      message: 'Active consultations count retrieved successfully',
+      data: result,
+    });
+  },
+);
 
 const getRevenueSummary = catchAsync(async (req: Request, res: Response) => {
   const result = await AdminService.getRevenueSummary();
@@ -49,9 +51,21 @@ const getAllTransactions = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const getRevenueTrend = catchAsync(async (req: Request, res: Response) => {
+  const result = await AdminService.getRevenueTrend();
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'Revenue trend retrieved successfully',
+    data: result,
+  });
+});
+
 export const AdminController = {
   getDashboardSummary,
   getActiveConsultations,
   getRevenueSummary,
   getAllTransactions,
+  getRevenueTrend,
 };
