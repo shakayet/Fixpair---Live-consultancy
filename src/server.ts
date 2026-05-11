@@ -1,3 +1,6 @@
+/* eslint-disable no-undef */
+/* eslint-disable @typescript-eslint/ban-ts-comment */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import colors from 'colors';
 import mongoose from 'mongoose';
 import { Server } from 'socket.io';
@@ -8,6 +11,7 @@ import { socketHelper } from './helpers/socketHelper';
 import { errorLogger, logger } from './shared/logger';
 import process from 'process';
 import cronJobs from './app/cron';
+import { BillingService } from './app/modules/payment/billing.service';
 
 //uncaught exception
 process.on('uncaughtException', error => {
@@ -27,12 +31,15 @@ async function main() {
     // Initialize cron jobs
     cronJobs();
 
+    // Recover billing sessions after restart
+    await BillingService.recoverBilling();
+
     const port =
       typeof config.port === 'number' ? config.port : Number(config.port);
 
     server = app.listen(port, config.ip_address as string, () => {
       logger.info(
-        colors.yellow(`♻️  Application listening on port:${config.port}`)
+        colors.yellow(`♻️  Application listening on port:${config.port}`),
       );
     });
 

@@ -54,33 +54,58 @@ const attachPaymentMethod = catchAsync(async (req: Request, res: Response) => {
     );
   }
 
-  await StripeService.attachPaymentMethod(
-    userData.stripeCustomerId,
-    paymentMethodId,
+  // Check if this payment method is already in our DB for this user
+  const existingMethod = userData.paymentMethods?.find(
+    m => m.methodId === paymentMethodId,
   );
 
-  // Get method details to store last4/brand
-  const method =
-    await StripeService.stripe.paymentMethods.retrieve(paymentMethodId);
+  try {
+    // 1. Retrieve the payment method to check its status
+    const method =
+      await StripeService.stripe.paymentMethods.retrieve(paymentMethodId);
 
-  const methodData = {
-    provider: 'stripe' as const,
-    methodId: paymentMethodId,
-    last4: method.card?.last4,
-    brand: method.card?.brand,
-    isDefault: (userData.paymentMethods?.length || 0) === 0,
-  };
+    // 2. If it's not already attached to this customer, attach it
+    if (method.customer !== userData.stripeCustomerId) {
+      await StripeService.attachPaymentMethod(
+        userData.stripeCustomerId,
+        paymentMethodId,
+      );
+    }
 
-  await User.findByIdAndUpdate(user.id, {
-    $push: { paymentMethods: methodData },
-  });
+    // 3. Update our database if it doesn't exist yet
+    if (!existingMethod) {
+      const methodData = {
+        provider: 'stripe' as const,
+        methodId: paymentMethodId,
+        last4: method.card?.last4,
+        brand: method.card?.brand,
+        isDefault: (userData.paymentMethods?.length || 0) === 0,
+      };
 
-  sendResponse(res, {
-    success: true,
-    statusCode: StatusCodes.OK,
-    message: 'Payment method attached successfully',
-    data: methodData,
-  });
+      await User.findByIdAndUpdate(user.id, {
+        $push: { paymentMethods: methodData },
+      });
+
+      return sendResponse(res, {
+        success: true,
+        statusCode: StatusCodes.OK,
+        message: 'Payment method attached successfully',
+        data: methodData,
+      });
+    }
+
+    sendResponse(res, {
+      success: true,
+      statusCode: StatusCodes.OK,
+      message: 'Payment method already attached',
+      data: existingMethod,
+    });
+  } catch (error: any) {
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      `Stripe Error: ${error.message}`,
+    );
+  }
 });
 
 const getPaymentMethods = catchAsync(async (req: Request, res: Response) => {
