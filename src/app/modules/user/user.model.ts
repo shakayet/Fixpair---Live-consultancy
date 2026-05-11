@@ -137,6 +137,16 @@ const userSchema = new Schema<IUser, UserModal>(
     toJSON: {
       transform(doc, ret) {
         delete ret.authentication;
+        delete ret.password;
+        delete ret.paymentMethods;
+        return ret;
+      },
+    },
+    toObject: {
+      transform(doc, ret) {
+        delete ret.authentication;
+        delete ret.password;
+        delete ret.paymentMethods;
         return ret;
       },
     },

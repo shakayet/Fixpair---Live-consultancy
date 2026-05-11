@@ -13,7 +13,10 @@ import { User } from './user.model';
 import { ReviewService } from '../review/review.service';
 
 const getAllUsersToDB = async (query: Record<string, unknown>) => {
-  const userQuery = new QueryBuilder(User.find(), query)
+  const userQuery = new QueryBuilder(
+    User.find().select('-authentication -password -paymentMethods'),
+    query,
+  )
     .search(['name', 'email', 'contact'])
     .filter()
     .sort()
@@ -27,7 +30,9 @@ const getAllUsersToDB = async (query: Record<string, unknown>) => {
   const resultWithStats = await Promise.all(
     result.map(async (user: any) => {
       if (user.role === USER_ROLES.CONSULTANT) {
-        const stats = await ReviewService.getConsultantStats(user._id.toString());
+        const stats = await ReviewService.getConsultantStats(
+          user._id.toString(),
+        );
         return { ...user, stats };
       }
       return user;
@@ -127,10 +132,28 @@ const deleteAccountFromDB = async (user: JwtPayload) => {
   return deleteDoc;
 };
 
+const getSingleUserFromDB = async (id: string): Promise<Partial<IUser>> => {
+  const isExistUser = await User.isExistUserById(id);
+  if (!isExistUser) {
+    throw new ApiError(StatusCodes.NOT_FOUND, "User doesn't exist!");
+  }
+
+  const userObj = isExistUser.toObject();
+
+  // If user is a consultant, attach stats
+  if (userObj.role === USER_ROLES.CONSULTANT) {
+    const stats = await ReviewService.getConsultantStats(id);
+    (userObj as any).stats = stats;
+  }
+
+  return userObj;
+};
+
 export const UserService = {
   getAllUsersToDB,
   createUserToDB,
   getUserProfileFromDB,
   updateProfileToDB,
   deleteAccountFromDB,
+  getSingleUserFromDB,
 };
