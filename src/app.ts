@@ -1,4 +1,5 @@
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import express, { Request, Response } from 'express';
 import { StatusCodes } from 'http-status-codes';
 import session from 'express-session';
@@ -16,6 +17,7 @@ app.use(Morgan.errorHandler);
 
 //body parser
 app.use(cors());
+app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
