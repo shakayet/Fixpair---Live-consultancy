@@ -22,6 +22,7 @@ export type IUser = {
   experience?: string;
   languages?: string[];
   expertise?: string;
+  tags?: string;
   visitFee?: number;
   perMinuteRate?: number;
   activeStatus?: boolean;

@@ -82,6 +82,10 @@ const userSchema = new Schema<IUser, UserModal>(
       type: String,
       default: null,
     },
+    tags: {
+      type: String,
+      default: null,
+    },
     visitFee: {
       type: Number,
       default: 0,
