@@ -323,6 +323,17 @@ const createReport = async (user: JwtPayload, payload: any, files: any) => {
   return report;
 };
 
+const getTotalConsultations = async (user: JwtPayload): Promise<number> => {
+  const consultantId = user.id;
+
+  const totalConsultations = await Consultation.countDocuments({
+    consultant: consultantId,
+    status: 'completed',
+  });
+
+  return totalConsultations;
+};
+
 const getReports = async (user: JwtPayload, query: Record<string, unknown>) => {
   const filter: any = {};
 
@@ -384,4 +395,5 @@ export const ReportService = {
   createReport,
   getReports,
   getSingleReport,
+  getTotalConsultations,
 };

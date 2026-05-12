@@ -36,6 +36,12 @@ router
   );
 
 router.get(
+  '/total-consultations',
+  auth(USER_ROLES.CONSULTANT),
+  ReportController.getTotalConsultations,
+);
+
+router.get(
   '/:id',
   auth(
     USER_ROLES.USER,

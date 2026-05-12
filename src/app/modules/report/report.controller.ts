@@ -43,8 +43,21 @@ const getSingleReport = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const getTotalConsultations = catchAsync(async (req: Request, res: Response) => {
+  const user = req.user as any;
+  const result = await ReportService.getTotalConsultations(user);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'Total consultations retrieved successfully',
+    data: result,
+  });
+});
+
 export const ReportController = {
   createReport,
   getReports,
   getSingleReport,
+  getTotalConsultations,
 };
