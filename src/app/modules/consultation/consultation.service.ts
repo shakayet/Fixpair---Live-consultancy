@@ -1,3 +1,5 @@
+/* eslint-disable no-unused-vars */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable no-undef */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { StatusCodes } from 'http-status-codes';
@@ -344,11 +346,127 @@ const deleteExpiredSlots = async () => {
   return result;
 };
 
+const rescheduleBooking = async (
+  user: JwtPayload,
+  bookingId: string,
+  payload: { newSlotId: string },
+) => {
+  const { newSlotId } = payload;
+  const userId = user.id;
+
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    // 1. Find the existing booking
+    const booking = await Consultation.findById(bookingId).session(session);
+    if (!booking) {
+      throw new ApiError(StatusCodes.NOT_FOUND, 'Booking not found');
+    }
+
+    // Check if user is the owner
+    if (booking.user.toString() !== userId) {
+      throw new ApiError(StatusCodes.FORBIDDEN, 'Unauthorized access');
+    }
+
+    // 2. Validate booking type (only scheduled bookings can be rescheduled via slots)
+    if (booking.bookingType !== 'scheduled' || !booking.slotId) {
+      throw new ApiError(
+        StatusCodes.BAD_REQUEST,
+        'Only scheduled bookings can be rescheduled',
+      );
+    }
+
+    // 3. Validate 6-hour rule
+    // slot.date is Date, startTime is "HH:mm"
+    const [hours, minutes] = booking.startTime!.split(':').map(Number);
+    const bookingDateTime = new Date(booking.date!);
+    bookingDateTime.setHours(hours, minutes, 0, 0);
+
+    const now = new Date();
+    const sixHoursLater = new Date(now.getTime() + 6 * 60 * 60 * 1000);
+
+    if (bookingDateTime < sixHoursLater) {
+      throw new ApiError(
+        StatusCodes.BAD_REQUEST,
+        'Rescheduling is only allowed at least 6 hours before the scheduled time',
+      );
+    }
+
+    // 4. Find the new availability slot
+    const availability = await Availability.findOne({
+      consultant: booking.consultant,
+      'slots._id': new mongoose.Types.ObjectId(newSlotId),
+      'slots.isBooked': false,
+    }).session(session);
+
+    if (!availability) {
+      throw new ApiError(
+        StatusCodes.NOT_FOUND,
+        'New selected slot is not available',
+      );
+    }
+
+    const newSlot = availability.slots.find(
+      s => s._id?.toString() === newSlotId,
+    );
+    if (!newSlot) {
+      throw new ApiError(StatusCodes.NOT_FOUND, 'New slot not found');
+    }
+
+    // 5. Release the old slot
+    await Availability.findOneAndUpdate(
+      {
+        consultant: booking.consultant,
+        'slots._id': booking.slotId,
+      },
+      { $set: { 'slots.$.isBooked': false } },
+      { session },
+    );
+
+    // 6. Book the new slot
+    const updatedAvailability = await Availability.findOneAndUpdate(
+      {
+        consultant: booking.consultant,
+        'slots._id': new mongoose.Types.ObjectId(newSlotId),
+        'slots.isBooked': false,
+      },
+      { $set: { 'slots.$.isBooked': true } },
+      { session, new: true },
+    );
+
+    if (!updatedAvailability) {
+      throw new ApiError(
+        StatusCodes.CONFLICT,
+        'New slot was already booked by someone else',
+      );
+    }
+
+    // 7. Update the booking record
+    booking.slotId = new mongoose.Types.ObjectId(newSlotId);
+    booking.date = newSlot.date;
+    booking.startTime = newSlot.startTime;
+    booking.endTime = newSlot.endTime;
+    booking.status = 'pending'; // Automatically revert to pending
+
+    await booking.save({ session });
+
+    await session.commitTransaction();
+    session.endSession();
+
+    return booking;
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    throw error;
+  }
+};
+
 export const ConsultationService = {
   setAvailability,
   getAvailableSlots,
   createBooking,
   getMyBookings,
   updateBookingStatus,
-  deleteExpiredSlots,
+  rescheduleBooking,
 };

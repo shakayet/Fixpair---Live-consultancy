@@ -47,9 +47,16 @@ const getAvailableSlotsZodSchema = z.object({
   }),
 });
 
+const rescheduleBookingZodSchema = z.object({
+  body: z.object({
+    newSlotId: z.string({ required_error: 'New Slot ID is required' }),
+  }),
+});
+
 export const ConsultationValidation = {
   setAvailabilityZodSchema,
   createBookingZodSchema,
   updateBookingStatusZodSchema,
   getAvailableSlotsZodSchema,
+  rescheduleBookingZodSchema,
 };

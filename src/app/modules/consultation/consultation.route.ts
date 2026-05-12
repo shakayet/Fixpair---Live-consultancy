@@ -50,4 +50,12 @@ router.patch(
   ConsultationController.updateBookingStatus,
 );
 
+// User: Reschedule a booking
+router.patch(
+  '/reschedule/:id',
+  auth(USER_ROLES.USER),
+  validateRequest(ConsultationValidation.rescheduleBookingZodSchema),
+  ConsultationController.rescheduleBooking,
+);
+
 export const ConsultationRoutes = router;
