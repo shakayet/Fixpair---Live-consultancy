@@ -1,3 +1,4 @@
+/* eslint-disable no-undef */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import bcrypt from 'bcrypt';
 import { StatusCodes } from 'http-status-codes';
@@ -78,8 +79,8 @@ const userSchema = new Schema<IUser, UserModal>(
       default: [],
     },
     expertise: {
-      type: [String],
-      default: [],
+      type: String,
+      default: null,
     },
     visitFee: {
       type: Number,
@@ -90,8 +91,8 @@ const userSchema = new Schema<IUser, UserModal>(
       default: 0,
     },
     activeStatus: {
-      type: String,
-      default: null,
+      type: Boolean,
+      default: true,
     },
     stripeCustomerId: {
       type: String,

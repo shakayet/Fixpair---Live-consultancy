@@ -150,12 +150,19 @@ const getSingleUserFromDB = async (id: string): Promise<Partial<IUser>> => {
 };
 
 const getConsultantsFromDB = async (query: Record<string, unknown>) => {
+  // Use searchTerm for name filtering if name is provided in query
+  const queryData = { ...query };
+  if (queryData.name) {
+    queryData.searchTerm = queryData.name;
+    delete queryData.name;
+  }
+
   // Add hardcoded filter for role: CONSULTANT
   const consultantQuery = new QueryBuilder(
     User.find({ role: USER_ROLES.CONSULTANT, status: 'active' }).select(
       '-authentication -password -paymentMethods',
     ),
-    query,
+    queryData,
   )
     .search(['name', 'email', 'expertise'])
     .filter() // This will handle ?consultancyType=doctor etc

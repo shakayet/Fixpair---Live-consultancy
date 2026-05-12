@@ -10,9 +10,9 @@ const createUserZodSchema = z.object({
     consultancyType: z.enum(['lawyer', 'advisor', 'doctor']).optional(),
     experience: z.string().optional(),
     languages: z.array(z.string()).optional(),
-    expertise: z.array(z.string()).optional(),
+    expertise: z.string().optional(),
     visitFee: z.number().optional(),
-    activeStatus: z.string().optional(),
+    activeStatus: z.boolean().optional(),
     profile: z.string().optional(),
   }),
 });
@@ -25,9 +25,9 @@ const updateUserZodSchema = z.object({
   consultancyType: z.enum(['lawyer', 'advisor', 'doctor']).optional(),
   experience: z.string().optional(),
   languages: z.array(z.string()).optional(),
-  expertise: z.array(z.string()).optional(),
+  expertise: z.string().optional(),
   visitFee: z.number().optional(),
-  activeStatus: z.string().optional(),
+  activeStatus: z.boolean().optional(),
 });
 
 export const UserValidation = {

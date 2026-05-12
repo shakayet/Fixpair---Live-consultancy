@@ -14,17 +14,17 @@ export type IUser = {
   location?: string;
   image?: string;
   avatar?: string;
-  status: 'active' | 'delete';
+  status: 'active' | 'blocked' | 'deleted';
   verified: boolean;
   provider?: 'local' | 'google' | 'facebook' | 'github' | 'apple';
   providerId?: string;
   consultancyType?: 'lawyer' | 'advisor' | 'doctor';
   experience?: string;
   languages?: string[];
-  expertise?: string[];
+  expertise?: string;
   visitFee?: number;
   perMinuteRate?: number;
-  activeStatus?: string;
+  activeStatus?: boolean;
   stripeCustomerId?: string;
   paypalPayerId?: string;
   paymentMethods?: {
