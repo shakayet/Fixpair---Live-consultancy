@@ -53,10 +53,17 @@ const rescheduleBookingZodSchema = z.object({
   }),
 });
 
+const cancelBookingZodSchema = z.object({
+  body: z.object({
+    cancelReason: z.string().optional(),
+  }),
+});
+
 export const ConsultationValidation = {
   setAvailabilityZodSchema,
   createBookingZodSchema,
   updateBookingStatusZodSchema,
   getAvailableSlotsZodSchema,
   rescheduleBookingZodSchema,
+  cancelBookingZodSchema,
 };

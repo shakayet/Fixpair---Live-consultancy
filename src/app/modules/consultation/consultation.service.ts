@@ -462,6 +462,98 @@ const rescheduleBooking = async (
   }
 };
 
+const cancelBooking = async (
+  user: JwtPayload,
+  bookingId: string,
+  payload: { cancelReason?: string },
+) => {
+  const { cancelReason } = payload;
+  const userId = user.id;
+
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    // 1. Find the booking
+    const booking = await Consultation.findById(bookingId).session(session);
+    if (!booking) {
+      throw new ApiError(StatusCodes.NOT_FOUND, 'Booking not found');
+    }
+
+    // 2. Ownership check
+    if (booking.user.toString() !== userId) {
+      throw new ApiError(
+        StatusCodes.FORBIDDEN,
+        'Only the booking owner can cancel the consultation',
+      );
+    }
+
+    // 3. Status check: Prevent cancellation of already completed, rejected, or cancelled bookings
+    const nonCancellableStatuses = [
+      'completed',
+      'rejected',
+      'cancelled',
+      'expired',
+    ];
+    if (nonCancellableStatuses.includes(booking.status)) {
+      throw new ApiError(
+        StatusCodes.BAD_REQUEST,
+        `Cannot cancel a booking that is already ${booking.status}`,
+      );
+    }
+
+    // 4. 6-hour rule check
+    // We only apply this rule to scheduled bookings with a date and time
+    if (
+      booking.bookingType === 'scheduled' &&
+      booking.date &&
+      booking.startTime
+    ) {
+      const [hours, minutes] = booking.startTime.split(':').map(Number);
+      const bookingDateTime = new Date(booking.date);
+      bookingDateTime.setHours(hours, minutes, 0, 0);
+
+      const now = new Date();
+      const sixHoursLater = new Date(now.getTime() + 6 * 60 * 60 * 1000);
+
+      if (bookingDateTime < sixHoursLater) {
+        throw new ApiError(
+          StatusCodes.BAD_REQUEST,
+          'Cancellation is only allowed at least 6 hours before the scheduled time',
+        );
+      }
+    }
+
+    // 5. Update booking status
+    booking.status = 'cancelled';
+    booking.cancelledAt = new Date();
+    booking.cancelledBy = new mongoose.Types.ObjectId(userId);
+    if (cancelReason) {
+      booking.cancelReason = cancelReason;
+    }
+
+    // 6. If it was a scheduled booking, free up the slot
+    if (booking.bookingType === 'scheduled' && booking.slotId) {
+      await Availability.findOneAndUpdate(
+        { consultant: booking.consultant, 'slots._id': booking.slotId },
+        { $set: { 'slots.$.isBooked': false } },
+        { session },
+      );
+    }
+
+    await booking.save({ session });
+
+    await session.commitTransaction();
+    session.endSession();
+
+    return booking;
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    throw error;
+  }
+};
+
 export const ConsultationService = {
   setAvailability,
   getAvailableSlots,
@@ -469,4 +561,5 @@ export const ConsultationService = {
   getMyBookings,
   updateBookingStatus,
   rescheduleBooking,
+  cancelBooking,
 };

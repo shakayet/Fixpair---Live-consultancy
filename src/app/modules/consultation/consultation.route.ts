@@ -58,4 +58,12 @@ router.patch(
   ConsultationController.rescheduleBooking,
 );
 
+// User: Cancel a booking
+router.patch(
+  '/cancel/:id',
+  auth(USER_ROLES.USER),
+  validateRequest(ConsultationValidation.cancelBookingZodSchema),
+  ConsultationController.cancelBooking,
+);
+
 export const ConsultationRoutes = router;

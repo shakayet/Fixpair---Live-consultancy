@@ -124,6 +124,19 @@ const consultationSchema = new Schema<IConsultation>(
       enum: ['pending', 'paid', 'failed'],
       default: 'pending',
     },
+    cancelledAt: {
+      type: Date,
+      default: null,
+    },
+    cancelReason: {
+      type: String,
+      default: null,
+    },
+    cancelledBy: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
   },
   { timestamps: true },
 );

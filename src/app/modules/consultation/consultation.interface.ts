@@ -35,6 +35,9 @@ export type IConsultation = {
     | 'cancelled'
     | 'expired';
   paymentStatus: 'pending' | 'paid' | 'failed';
+  cancelledAt?: Date;
+  cancelReason?: string;
+  cancelledBy?: Types.ObjectId;
 };
 
 export type IAvailability = {

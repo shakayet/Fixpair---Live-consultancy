@@ -99,6 +99,19 @@ const rescheduleBooking = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const cancelBooking = catchAsync(async (req: Request, res: Response) => {
+  const user = req.user as any;
+  const { id } = req.params;
+  const result = await ConsultationService.cancelBooking(user, id, req.body);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'Booking cancelled successfully',
+    data: result,
+  });
+});
+
 export const ConsultationController = {
   setAvailability,
   getAvailableSlots,
@@ -106,4 +119,5 @@ export const ConsultationController = {
   getMyBookings,
   updateBookingStatus,
   rescheduleBooking,
+  cancelBooking,
 };
