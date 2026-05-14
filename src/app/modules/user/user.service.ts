@@ -139,6 +139,41 @@ const deleteAccountFromDB = async (user: JwtPayload) => {
   return deleteDoc;
 };
 
+const deleteUserFromDB = async (adminId: string, targetId: string) => {
+  const adminUser = await User.findById(adminId);
+  const targetUser = await User.findById(targetId);
+
+  if (!targetUser) {
+    throw new ApiError(StatusCodes.NOT_FOUND, "User doesn't exist!");
+  }
+
+  // Requirement: Super Admin cannot be deleted by anyone
+  if (targetUser.role === USER_ROLES.SUPER_ADMIN) {
+    throw new ApiError(
+      StatusCodes.FORBIDDEN,
+      'Super Admin account cannot be deleted!',
+    );
+  }
+
+  if (adminUser?.role === USER_ROLES.ADMIN) {
+    // Admin cannot delete other Admins
+    if (targetUser.role === USER_ROLES.ADMIN) {
+      throw new ApiError(
+        StatusCodes.FORBIDDEN,
+        'Admin cannot delete another Admin account!',
+      );
+    }
+  }
+
+  // Unlink image if exists
+  if (targetUser.image) {
+    unlinkFile(targetUser.image);
+  }
+
+  const result = await User.findByIdAndDelete(targetId);
+  return result;
+};
+
 const getSingleUserFromDB = async (id: string): Promise<Partial<IUser>> => {
   const isExistUser = await User.isExistUserById(id);
   if (!isExistUser) {
@@ -197,6 +232,7 @@ export const UserService = {
   getUserProfileFromDB,
   updateProfileToDB,
   deleteAccountFromDB,
+  deleteUserFromDB,
   getSingleUserFromDB,
   getConsultantsFromDB,
 };

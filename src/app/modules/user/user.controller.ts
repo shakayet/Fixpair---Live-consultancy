@@ -79,6 +79,18 @@ const deleteAccount = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const deleteUser = catchAsync(async (req: Request, res: Response) => {
+  const admin = req.user as any;
+  const { id } = req.params;
+  await UserService.deleteUserFromDB(admin.id, id);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'User deleted successfully',
+  });
+});
+
 const getSingleUser = catchAsync(async (req: Request, res: Response) => {
   const { id } = req.params;
   const result = await UserService.getSingleUserFromDB(id);
@@ -109,6 +121,7 @@ export const UserController = {
   getUserProfile,
   updateProfile,
   deleteAccount,
+  deleteUser,
   getSingleUser,
   getConsultants,
 };
