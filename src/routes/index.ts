@@ -11,6 +11,7 @@ import { ReportRoutes } from '../app/modules/report/report.route';
 import { VideoSessionRoutes } from '../app/modules/videoSession/videoSession.route';
 import { PaymentRoutes } from '../app/modules/payment/payment.route';
 import { AdminRoutes } from '../app/modules/admin/admin.route';
+import { RecommendationRoutes } from '../app/modules/recommendation/recommendation.route';
 const router = express.Router();
 
 const apiRoutes = [
@@ -61,6 +62,10 @@ const apiRoutes = [
   {
     path: '/admin',
     route: AdminRoutes,
+  },
+  {
+    path: '/recommendation',
+    route: RecommendationRoutes,
   },
 ];
 
