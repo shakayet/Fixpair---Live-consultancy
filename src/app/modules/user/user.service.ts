@@ -123,6 +123,13 @@ const deleteAccountFromDB = async (user: JwtPayload) => {
     throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
   }
 
+  if (isExistUser.role === USER_ROLES.SUPER_ADMIN) {
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      'Super Admin account cannot be deleted!',
+    );
+  }
+
   //unlink file here
   if (isExistUser.image) {
     unlinkFile(isExistUser.image);
