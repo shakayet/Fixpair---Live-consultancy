@@ -560,6 +560,7 @@ export const ConsultationService = {
   createBooking,
   getMyBookings,
   updateBookingStatus,
+  deleteExpiredSlots,
   rescheduleBooking,
   cancelBooking,
 };
