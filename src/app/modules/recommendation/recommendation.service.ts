@@ -48,7 +48,14 @@ const getRecommendedConsultants = async () => {
         totalConsultations: { $size: '$completedConsultations' },
       },
     },
-    // 5. Sort by category, then by ranking criteria
+    // 5. Add requested fields (rating, tag, activeStatus)
+    {
+      $addFields: {
+        rating: '$averageRating',
+        tag: 'Recommended',
+      },
+    },
+    // 6. Sort by category, then by ranking criteria
     {
       $sort: {
         consultancyType: 1,
@@ -56,7 +63,7 @@ const getRecommendedConsultants = async () => {
         totalConsultations: -1,
       },
     },
-    // 6. Project clean response fields
+    // 7. Project clean response fields
     {
       $project: {
         _id: 1,
@@ -66,14 +73,17 @@ const getRecommendedConsultants = async () => {
         consultancyType: 1,
         expertise: 1,
         averageRating: 1,
+        rating: 1,
         totalConsultations: 1,
         perMinuteRate: 1,
         visitFee: 1,
         image: 1,
         avatar: 1,
+        tag: 1,
+        activeStatus: 1,
       },
     },
-    // 7. Group by category and slice top 5
+    // 8. Group by category and slice top 5
     {
       $group: {
         _id: '$consultancyType',
