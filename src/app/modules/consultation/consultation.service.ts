@@ -166,7 +166,7 @@ const createBooking = async (
         date: slot.date,
         startTime: slot.startTime,
         endTime: slot.endTime,
-        status: 'confirmed', // Scheduled bookings are confirmed immediately if slot is free
+        status: 'pending', // Scheduled bookings start as pending until consultant accepts
         paymentStatus: 'pending',
         perMinuteRate,
         platformFee,
@@ -293,10 +293,11 @@ const updateBookingStatus = async (
       );
     }
 
-    // If cancelling a scheduled booking, free up the slot
+    // If cancelling or rejecting a scheduled booking, free up the slot
     if (
-      status === 'cancelled' &&
+      (status === 'cancelled' || status === 'rejected') &&
       booking.status !== 'cancelled' &&
+      booking.status !== 'rejected' &&
       booking.bookingType === 'scheduled' &&
       booking.slotId
     ) {
@@ -308,7 +309,10 @@ const updateBookingStatus = async (
     }
 
     // Additional logic for callback or instant bookings
-    const updateData: any = { status };
+    // Map 'accepted' to 'confirmed' as per requirement
+    const updateData: any = {
+      status: status === 'accepted' ? 'confirmed' : status,
+    };
     if (date) updateData.date = new Date(date);
     if (startTime) updateData.startTime = startTime;
     if (endTime) updateData.endTime = endTime;
