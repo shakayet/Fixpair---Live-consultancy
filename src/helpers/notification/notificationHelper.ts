@@ -33,7 +33,7 @@ try {
 }
 
 const sendPushNotification = async (
-  token: string,
+  tokens: string | string[],
   data: Record<string, string>,
 ) => {
   if (!isFcmInitialized) {
@@ -41,8 +41,15 @@ const sendPushNotification = async (
     return null;
   }
 
-  const message: admin.messaging.Message = {
-    token,
+  const tokenList = Array.isArray(tokens) ? tokens : [tokens];
+
+  if (tokenList.length === 0) {
+    logger.warn('Skipping push notification: No tokens provided');
+    return null;
+  }
+
+  const message: admin.messaging.MulticastMessage = {
+    tokens: tokenList,
     data,
     android: {
       priority: 'high',
@@ -61,7 +68,10 @@ const sendPushNotification = async (
   };
 
   try {
-    const response = await admin.messaging().send(message);
+    const response = await admin.messaging().sendEachForMulticast(message);
+    logger.info(
+      `Successfully sent ${response.successCount} push notifications`,
+    );
     return response;
   } catch (error) {
     errorLogger.error('Error sending FCM message:', error);

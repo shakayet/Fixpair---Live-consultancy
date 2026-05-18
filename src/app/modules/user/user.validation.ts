@@ -36,6 +36,7 @@ const deviceTokenZodSchema = z.object({
     deviceType: z.enum(['android', 'ios'], {
       required_error: 'Device type is required',
     }),
+    action: z.enum(['add', 'remove']).default('add'),
   }),
 });
 

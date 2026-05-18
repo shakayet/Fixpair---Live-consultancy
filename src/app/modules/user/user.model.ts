@@ -137,9 +137,9 @@ const userSchema = new Schema<IUser, UserModal>(
         default: null,
       },
     },
-    deviceToken: {
-      type: String,
-      default: null,
+    fcmTokens: {
+      type: [String],
+      default: [],
     },
     deviceType: {
       type: String,

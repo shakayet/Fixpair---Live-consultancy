@@ -42,7 +42,7 @@ export type IUser = {
     otpRequestCount: number;
     lastOtpRequestTime: Date | null;
   };
-  deviceToken?: string;
+  fcmTokens: string[];
   deviceType?: 'android' | 'ios';
 };
 

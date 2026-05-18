@@ -228,18 +228,29 @@ const getConsultantsFromDB = async (query: Record<string, unknown>) => {
 
 const updateDeviceTokenToDB = async (
   userId: string,
-  payload: { deviceToken: string; deviceType: 'android' | 'ios' },
+  payload: {
+    deviceToken: string;
+    deviceType: 'android' | 'ios';
+    action?: 'add' | 'remove';
+  },
 ) => {
-  const result = await User.findByIdAndUpdate(
-    userId,
-    {
-      $set: {
-        deviceToken: payload.deviceToken,
-        deviceType: payload.deviceType,
-      },
-    },
-    { new: true },
-  );
+  const { deviceToken, deviceType, action = 'add' } = payload;
+
+  let updateOperation;
+  if (action === 'add') {
+    updateOperation = {
+      $addToSet: { fcmTokens: deviceToken },
+      $set: { deviceType },
+    };
+  } else {
+    updateOperation = {
+      $pull: { fcmTokens: deviceToken },
+    };
+  }
+
+  const result = await User.findByIdAndUpdate(userId, updateOperation, {
+    new: true,
+  });
 
   if (!result) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'User not found');

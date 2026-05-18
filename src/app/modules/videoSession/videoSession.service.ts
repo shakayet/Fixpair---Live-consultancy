@@ -112,8 +112,8 @@ const createSession = async (user: JwtPayload, consultationId: string) => {
     socketHelper.emitToUser(recipientId, 'incoming-call', signalingData);
   } else if (recipient.role === 'USER') {
     // Case 2: Recipient is Mobile Client (FCM)
-    if (recipient.deviceToken) {
-      await NotificationHelper.sendPushNotification(recipient.deviceToken, {
+    if (recipient.fcmTokens && recipient.fcmTokens.length > 0) {
+      await NotificationHelper.sendPushNotification(recipient.fcmTokens, {
         type: 'INCOMING_CALL',
         ...signalingData,
       }).catch(err => console.error('FCM Error in session creation:', err));
@@ -253,8 +253,8 @@ const handleCallAction = async (
 
     // Notify the caller
     socketHelper.emitToUser(recipientId, 'call-rejected', { sessionId });
-    if (recipient?.deviceToken) {
-      await NotificationHelper.sendPushNotification(recipient.deviceToken, {
+    if (recipient?.fcmTokens && recipient.fcmTokens.length > 0) {
+      await NotificationHelper.sendPushNotification(recipient.fcmTokens, {
         type: 'CALL_REJECTED',
         sessionId,
       }).catch(err => console.error('FCM Error in REJECT:', err));
@@ -266,8 +266,8 @@ const handleCallAction = async (
 
     // Notify the recipient
     socketHelper.emitToUser(recipientId, 'call-cancelled', { sessionId });
-    if (recipient?.deviceToken) {
-      await NotificationHelper.sendPushNotification(recipient.deviceToken, {
+    if (recipient?.fcmTokens && recipient.fcmTokens.length > 0) {
+      await NotificationHelper.sendPushNotification(recipient.fcmTokens, {
         type: 'CALL_CANCELLED',
         sessionId,
       }).catch(err => console.error('FCM Error in CANCEL:', err));
