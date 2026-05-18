@@ -66,4 +66,10 @@ router.patch(
   ConsultationController.cancelBooking,
 );
 
+// Get total completed consultations for a specific consultant
+router.get(
+  '/consultants/:consultantId/total-consultations',
+  ConsultationController.getConsultantTotalConsultations,
+);
+
 export const ConsultationRoutes = router;

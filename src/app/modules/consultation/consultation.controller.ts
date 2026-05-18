@@ -112,6 +112,22 @@ const cancelBooking = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const getConsultantTotalConsultations = catchAsync(
+  async (req: Request, res: Response) => {
+    const { consultantId } = req.params;
+    const result = await ConsultationService.getConsultantTotalConsultations(
+      consultantId,
+    );
+
+    sendResponse(res, {
+      success: true,
+      statusCode: StatusCodes.OK,
+      message: 'Consultant total consultations retrieved successfully',
+      data: result,
+    });
+  },
+);
+
 export const ConsultationController = {
   setAvailability,
   getAvailableSlots,
@@ -120,4 +136,5 @@ export const ConsultationController = {
   updateBookingStatus,
   rescheduleBooking,
   cancelBooking,
+  getConsultantTotalConsultations,
 };

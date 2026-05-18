@@ -554,6 +554,23 @@ const cancelBooking = async (
   }
 };
 
+const getConsultantTotalConsultations = async (consultantId: string) => {
+  // Validate ObjectId
+  if (!mongoose.Types.ObjectId.isValid(consultantId)) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Invalid consultant ID');
+  }
+
+  const totalConsultations = await Consultation.countDocuments({
+    consultant: new mongoose.Types.ObjectId(consultantId),
+    status: 'completed',
+  });
+
+  return {
+    consultantId,
+    totalConsultations,
+  };
+};
+
 export const ConsultationService = {
   setAvailability,
   getAvailableSlots,
@@ -561,6 +578,7 @@ export const ConsultationService = {
   getMyBookings,
   updateBookingStatus,
   deleteExpiredSlots,
+  getConsultantTotalConsultations,
   rescheduleBooking,
   cancelBooking,
 };
