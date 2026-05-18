@@ -115,6 +115,18 @@ const getConsultants = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const updateDeviceToken = catchAsync(async (req: Request, res: Response) => {
+  const user = req.user as any;
+  const result = await UserService.updateDeviceTokenToDB(user.id, req.body);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'Device token updated successfully',
+    data: result,
+  });
+});
+
 export const UserController = {
   getAllUsers,
   createUser,
@@ -124,4 +136,5 @@ export const UserController = {
   deleteUser,
   getSingleUser,
   getConsultants,
+  updateDeviceToken,
 };

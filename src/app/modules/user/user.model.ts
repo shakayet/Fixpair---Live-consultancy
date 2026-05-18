@@ -137,6 +137,15 @@ const userSchema = new Schema<IUser, UserModal>(
         default: null,
       },
     },
+    deviceToken: {
+      type: String,
+      default: null,
+    },
+    deviceType: {
+      type: String,
+      enum: ['android', 'ios'],
+      default: null,
+    },
   },
   {
     timestamps: true,

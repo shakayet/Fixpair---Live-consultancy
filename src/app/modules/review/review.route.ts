@@ -20,6 +20,8 @@ router.get(
   ReviewController.getReviewsByConsultant,
 );
 
+router.get('/recent', ReviewController.getRecentReviews);
+
 router.get('/stats/:consultantId', ReviewController.getConsultantStats);
 
 router

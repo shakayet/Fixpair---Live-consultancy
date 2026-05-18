@@ -226,6 +226,28 @@ const getConsultantsFromDB = async (query: Record<string, unknown>) => {
   return { result: resultWithStats, meta };
 };
 
+const updateDeviceTokenToDB = async (
+  userId: string,
+  payload: { deviceToken: string; deviceType: 'android' | 'ios' },
+) => {
+  const result = await User.findByIdAndUpdate(
+    userId,
+    {
+      $set: {
+        deviceToken: payload.deviceToken,
+        deviceType: payload.deviceType,
+      },
+    },
+    { new: true },
+  );
+
+  if (!result) {
+    throw new ApiError(StatusCodes.NOT_FOUND, 'User not found');
+  }
+
+  return result;
+};
+
 export const UserService = {
   getAllUsersToDB,
   createUserToDB,
@@ -235,4 +257,5 @@ export const UserService = {
   deleteUserFromDB,
   getSingleUserFromDB,
   getConsultantsFromDB,
+  updateDeviceTokenToDB,
 };

@@ -30,7 +30,17 @@ const updateUserZodSchema = z.object({
   activeStatus: z.boolean().optional(),
 });
 
+const deviceTokenZodSchema = z.object({
+  body: z.object({
+    deviceToken: z.string({ required_error: 'Device token is required' }),
+    deviceType: z.enum(['android', 'ios'], {
+      required_error: 'Device type is required',
+    }),
+  }),
+});
+
 export const UserValidation = {
   createUserZodSchema,
   updateUserZodSchema,
+  deviceTokenZodSchema,
 };

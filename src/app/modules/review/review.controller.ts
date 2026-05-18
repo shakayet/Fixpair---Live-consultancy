@@ -72,10 +72,22 @@ const getConsultantStats = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const getRecentReviews = catchAsync(async (req: Request, res: Response) => {
+  const result = await ReviewService.getRecentReviews();
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'Recent reviews retrieved successfully',
+    data: result,
+  });
+});
+
 export const ReviewController = {
   createReview,
   getReviewsByConsultant,
   updateReview,
   deleteReview,
   getConsultantStats,
+  getRecentReviews,
 };

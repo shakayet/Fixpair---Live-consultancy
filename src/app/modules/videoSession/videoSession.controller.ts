@@ -55,9 +55,27 @@ const getMySessions = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const handleCallAction = catchAsync(async (req: Request, res: Response) => {
+  const user = req.user as any;
+  const { sessionId, action } = req.body;
+  const result = await VideoSessionService.handleCallAction(
+    user,
+    sessionId,
+    action,
+  );
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: `Call ${action.toLowerCase()}ed successfully`,
+    data: result,
+  });
+});
+
 export const VideoSessionController = {
   createSession,
   joinSession,
   endSession,
   getMySessions,
+  handleCallAction,
 };

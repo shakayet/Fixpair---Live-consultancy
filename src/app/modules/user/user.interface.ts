@@ -42,6 +42,8 @@ export type IUser = {
     otpRequestCount: number;
     lastOtpRequestTime: Date | null;
   };
+  deviceToken?: string;
+  deviceType?: 'android' | 'ios';
 };
 
 export type UserModal = {

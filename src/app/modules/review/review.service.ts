@@ -105,10 +105,23 @@ const getConsultantStats = async (consultantId: string) => {
   return stats.length > 0 ? stats[0] : { avgRating: 0, totalReviews: 0 };
 };
 
+const getRecentReviews = async () => {
+  const result = await Review.find()
+    .sort({ createdAt: -1 })
+    .limit(5)
+    .populate([
+      { path: 'user', select: 'name image avatar' },
+      { path: 'consultant', select: 'name image avatar' },
+    ]);
+
+  return result;
+};
+
 export const ReviewService = {
   createReview,
   getReviewsByConsultant,
   updateReview,
   deleteReview,
   getConsultantStats,
+  getRecentReviews,
 };

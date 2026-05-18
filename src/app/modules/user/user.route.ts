@@ -72,6 +72,13 @@ router.get(
   UserController.getConsultants,
 );
 
+router.post(
+  '/device-token',
+  auth(USER_ROLES.USER, USER_ROLES.CONSULTANT),
+  validateRequest(UserValidation.deviceTokenZodSchema),
+  UserController.updateDeviceToken,
+);
+
 router.get(
   '/:id',
   auth(

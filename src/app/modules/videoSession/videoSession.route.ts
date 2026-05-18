@@ -33,4 +33,11 @@ router.post(
   VideoSessionController.endSession,
 );
 
+router.post(
+  '/action',
+  auth(USER_ROLES.USER, USER_ROLES.CONSULTANT),
+  validateRequest(VideoSessionValidation.callActionZodSchema),
+  VideoSessionController.handleCallAction,
+);
+
 export const VideoSessionRoutes = router;

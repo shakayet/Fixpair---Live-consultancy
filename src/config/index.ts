@@ -78,4 +78,7 @@ export default {
       warningMinutes: Number(process.env.CONSULTATION_WARNING_MINUTES) || 5,
     },
   },
+  fcm: {
+    serviceAccountBase64: process.env.FCM_SERVICE_ACCOUNT_BASE64 || '',
+  },
 };
