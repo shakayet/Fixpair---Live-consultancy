@@ -30,8 +30,7 @@ const generateAgoraToken = (
   const currentTimestamp = Math.floor(Date.now() / 1000);
   const privilegeExpiredTs = currentTimestamp + expirationTimeInSeconds;
 
-  const agoraRole =
-    role === 'CONSULTANT' ? RtcRole.PUBLISHER : RtcRole.SUBSCRIBER;
+  const agoraRole = RtcRole.PUBLISHER; // Both sides need publishing privileges for video/audio and DataStream (Transcription)
 
   const token = RtcTokenBuilder.buildTokenWithUid(
     appId,

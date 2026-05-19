@@ -4,14 +4,17 @@ import { logger } from '../shared/logger';
 import { jwtHelper } from './jwtHelper';
 import config from '../config';
 import { Secret } from 'jsonwebtoken';
+import { VideoSession } from '../app/modules/videoSession/videoSession.model';
+import { User } from '../app/modules/user/user.model';
 
 const userSocketMap = new Map<string, string>();
 
 const socket = (io: Server) => {
   // Middleware for authentication
   io.use((socket, next) => {
-    const token = socket.handshake.auth?.token || socket.handshake.headers?.authorization;
-    
+    const token =
+      socket.handshake.auth?.token || socket.handshake.headers?.authorization;
+
     if (!token) {
       return next(new Error('Authentication error: Token missing'));
     }
@@ -19,8 +22,11 @@ const socket = (io: Server) => {
     try {
       // Remove 'Bearer ' if present
       const cleanToken = token.startsWith('Bearer ') ? token.slice(7) : token;
-      const decoded = jwtHelper.verifyToken(cleanToken, config.jwt.jwt_secret as Secret);
-      
+      const decoded = jwtHelper.verifyToken(
+        cleanToken,
+        config.jwt.jwt_secret as Secret,
+      );
+
       if (!decoded || !decoded.id) {
         return next(new Error('Authentication error: Invalid token'));
       }
@@ -36,11 +42,39 @@ const socket = (io: Server) => {
   io.on('connection', socket => {
     // @ts-ignore
     const userId = socket.userId;
-    
+
     if (userId) {
       userSocketMap.set(userId, socket.id);
-      logger.info(colors.blue(`User connected: ${userId} (Socket: ${socket.id})`));
+      logger.info(
+        colors.blue(`User connected: ${userId} (Socket: ${socket.id})`),
+      );
     }
+
+    // --- Live Transcription Relay (Option B) ---
+    socket.on('send-speech', async (data: { sessionId: string; text: string }) => {
+      try {
+        const { sessionId, text } = data;
+        const session = await VideoSession.findById(sessionId);
+        if (!session) return;
+
+        // Determine recipient (the opposite person in the session)
+        const recipientId =
+          userId === session.user.toString()
+            ? session.consultant.toString()
+            : session.user.toString();
+
+        const sender = await User.findById(userId);
+        
+        // Relay to the other person
+        emitToUser(recipientId, 'receive-speech', {
+          speaker: sender?.name || 'User',
+          text,
+          sessionId,
+        });
+      } catch (error) {
+        logger.error('Transcription relay error:', error);
+      }
+    });
 
     //disconnect
     socket.on('disconnect', () => {
