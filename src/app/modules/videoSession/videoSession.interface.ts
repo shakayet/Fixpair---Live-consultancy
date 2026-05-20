@@ -10,4 +10,7 @@ export type IVideoSession = {
   startedAt?: Date;
   endedAt?: Date;
   duration?: number; // Duration in minutes or seconds
+  sttResourceId?: string;
+  sttTaskId?: string;
+  isTranscriptionActive?: boolean;
 };

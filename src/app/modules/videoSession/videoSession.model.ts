@@ -40,6 +40,16 @@ const videoSessionSchema = new Schema<IVideoSession>(
     duration: {
       type: Number,
     },
+    sttResourceId: {
+      type: String,
+    },
+    sttTaskId: {
+      type: String,
+    },
+    isTranscriptionActive: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: true,

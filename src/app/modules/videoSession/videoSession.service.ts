@@ -1,3 +1,5 @@
+/* eslint-disable no-unused-vars */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable no-console */
 /* eslint-disable no-undef */
@@ -10,39 +12,7 @@ import ApiError from '../../../errors/ApiError';
 import { Consultation } from '../consultation/consultation.model';
 import { VideoSession } from './videoSession.model';
 import { IVideoSession } from './videoSession.interface';
-
-const generateAgoraToken = (
-  channelName: string,
-  role: string,
-  uid: number = 0,
-) => {
-  const appId = config.agora.appId;
-  const appCertificate = config.agora.appCertificate;
-
-  if (!appId || !appCertificate) {
-    throw new ApiError(
-      StatusCodes.INTERNAL_SERVER_ERROR,
-      'Agora App ID or Certificate not configured',
-    );
-  }
-
-  const expirationTimeInSeconds = config.agora.expirationTime;
-  const currentTimestamp = Math.floor(Date.now() / 1000);
-  const privilegeExpiredTs = currentTimestamp + expirationTimeInSeconds;
-
-  const agoraRole = RtcRole.PUBLISHER; // Both sides need publishing privileges for video/audio and DataStream (Transcription)
-
-  const token = RtcTokenBuilder.buildTokenWithUid(
-    appId,
-    appCertificate,
-    channelName,
-    uid,
-    agoraRole,
-    privilegeExpiredTs,
-  );
-
-  return token;
-};
+import { generateAgoraToken } from '../../../helpers/agoraTokenHelper';
 
 const createSession = async (user: JwtPayload, consultationId: string) => {
   const consultation = await Consultation.findById(consultationId);
@@ -76,7 +46,9 @@ const createSession = async (user: JwtPayload, consultationId: string) => {
   }
 
   const channelName = `consultation_${consultationId}`;
-  const token = generateAgoraToken(channelName, user.role);
+  // User UID: 1001, Consultant UID: 2001 as per requirement
+  const uid = user.role === 'USER' ? 1001 : 2001;
+  const token = generateAgoraToken(channelName, uid);
 
   const sessionData: Partial<IVideoSession> = {
     consultation: new mongoose.Types.ObjectId(consultationId),
@@ -108,18 +80,22 @@ const createSession = async (user: JwtPayload, consultationId: string) => {
 
   if (recipient.role === 'CONSULTANT') {
     // Case 1: Recipient is Web Consultant (Socket)
-    socketHelper.emitToUser(recipientId, 'incoming-call', signalingData);
+    socketHelper.emitToUser(recipientId, 'incoming-call', {
+      ...signalingData,
+      uid: 2001,
+    });
   } else if (recipient.role === 'USER') {
     // Case 2: Recipient is Mobile Client (FCM)
     if (recipient.fcmTokens && recipient.fcmTokens.length > 0) {
       await NotificationHelper.sendPushNotification(recipient.fcmTokens, {
         type: 'INCOMING_CALL',
         ...signalingData,
+        uid: '1001', // FCM data must be strings
       }).catch(err => console.error('FCM Error in session creation:', err));
     }
   }
 
-  return result;
+  return { ...result.toObject(), uid };
 };
 
 import { BillingService } from '../payment/billing.service';
@@ -127,6 +103,7 @@ import { InvoiceService } from '../payment/invoice.service';
 import { NotificationHelper } from '../../../helpers/notification/notificationHelper';
 import { socketHelper } from '../../../helpers/socketHelper';
 import { User } from '../user/user.model';
+import { TranscriptionService } from '../transcription/transcription.service';
 
 const joinSession = async (user: JwtPayload, sessionId: string) => {
   const session = await VideoSession.findById(sessionId);
@@ -158,13 +135,26 @@ const joinSession = async (user: JwtPayload, sessionId: string) => {
     // If this fails, it will throw an error and prevent session from starting
     await BillingService.startBilling(session.consultation.toString());
 
-    // 2. Only if billing starts successfully, mark session as ongoing
+    // 2. Start Transcription
+    try {
+      await TranscriptionService.startTranscription(
+        session.consultation.toString(),
+      );
+    } catch (error) {
+      console.error('Failed to start transcription:', error);
+      // We don't want to block the session if STT fails
+    }
+
+    // 3. Only if billing starts successfully, mark session as ongoing
     session.status = 'ongoing';
     session.startedAt = new Date();
     await session.save();
   }
 
-  return session;
+  // Add the assigned UID to the response for the frontend
+  const uid = user.role === 'USER' ? 1001 : 2001;
+
+  return { ...session.toObject(), uid };
 };
 
 const endSession = async (user: JwtPayload, sessionId: string) => {
@@ -201,6 +191,15 @@ const endSession = async (user: JwtPayload, sessionId: string) => {
   }
 
   await session.save();
+
+  // Stop transcription
+  try {
+    await TranscriptionService.stopTranscription(
+      session.consultation.toString(),
+    );
+  } catch (error) {
+    console.error('Failed to stop transcription:', error);
+  }
 
   // Stop billing and generate invoice
   BillingService.stopBilling(session.consultation.toString());

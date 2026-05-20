@@ -12,6 +12,7 @@ import { VideoSessionRoutes } from '../app/modules/videoSession/videoSession.rou
 import { PaymentRoutes } from '../app/modules/payment/payment.route';
 import { AdminRoutes } from '../app/modules/admin/admin.route';
 import { RecommendationRoutes } from '../app/modules/recommendation/recommendation.route';
+import { TranscriptionRoutes } from '../app/modules/transcription/transcription.route';
 const router = express.Router();
 
 const apiRoutes = [
@@ -66,6 +67,10 @@ const apiRoutes = [
   {
     path: '/recommendation',
     route: RecommendationRoutes,
+  },
+  {
+    path: '/transcription',
+    route: TranscriptionRoutes,
   },
 ];
 

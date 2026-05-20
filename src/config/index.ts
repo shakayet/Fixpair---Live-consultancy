@@ -56,6 +56,8 @@ export default {
   agora: {
     appId: process.env.AGORA_APP_ID || '',
     appCertificate: process.env.AGORA_APP_CERTIFICATE || '',
+    customerId: process.env.AGORA_CUSTOMER_ID || '',
+    customerSecret: process.env.AGORA_CUSTOMER_SECRET || '',
     expirationTime: Number(process.env.AGORA_TOKEN_EXPIRATION_TIME) || 3600,
   },
   payment: {
