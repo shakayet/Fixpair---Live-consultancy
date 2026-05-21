@@ -34,23 +34,24 @@ const generateInvoicePDF = async (invoiceData: any): Promise<string> => {
 
       doc.pipe(stream);
 
-      // --- Colors & Styling ---
+      // --- Modern PDF Styling ---
       const primaryColor = '#2c3e50';
       const secondaryColor = '#34495e';
       const accentColor = '#3498db';
-      const lightGray = '#f8f9fa';
+      const lightGray = '#f1f4f6';
       const borderColor = '#dee2e6';
       const successColor = '#27ae60';
 
       // Header Background
-      doc.rect(0, 0, 612, 120).fill('#f1f4f6');
+      doc.rect(0, 0, 612, 120).fill(lightGray);
 
-      // --- Header / Branding ---
+      // Brand & Title
       doc
         .fillColor(primaryColor)
         .fontSize(24)
         .font('Helvetica-Bold')
         .text('FIXPAIR', 50, 45);
+
       doc
         .fontSize(10)
         .font('Helvetica')
@@ -71,6 +72,7 @@ const generateInvoicePDF = async (invoiceData: any): Promise<string> => {
           align: 'right',
           width: 545,
         });
+
       doc
         .font('Helvetica')
         .text(
@@ -85,47 +87,50 @@ const generateInvoicePDF = async (invoiceData: any): Promise<string> => {
 
       doc.moveDown(4);
 
-      // --- Info Section with Rounded Rectangles ---
+      // --- Info Sections ---
       const infoY = 150;
 
-      // Bill To Box
-      doc.roundedRect(50, infoY, 240, 90, 5).strokeColor(borderColor).stroke();
-      doc
-        .fillColor(primaryColor)
-        .font('Helvetica-Bold')
-        .fontSize(11)
-        .text('BILL TO:', 65, infoY + 15);
-      doc.font('Helvetica').fontSize(10).fillColor(secondaryColor);
-      doc.text(invoiceData.userName, 65, infoY + 35);
-      doc.text(invoiceData.userEmail, 65, infoY + 50);
+      // Bill To & Consultant Box
+      doc.roundedRect(50, infoY, 512, 110, 5).strokeColor(borderColor).stroke();
 
-      // Consultant Box
-      doc.roundedRect(322, infoY, 240, 90, 5).strokeColor(borderColor).stroke();
+      // Bill To
       doc
         .fillColor(primaryColor)
         .font('Helvetica-Bold')
         .fontSize(11)
-        .text('CONSULTANT:', 337, infoY + 15);
+        .text('BILL TO:', 70, infoY + 15);
       doc.font('Helvetica').fontSize(10).fillColor(secondaryColor);
-      doc.text(invoiceData.consultantName, 337, infoY + 35);
+      doc.text(invoiceData.userName, 70, infoY + 35);
+      doc.text(invoiceData.userEmail, 70, infoY + 50);
+
+      // Consultant Info
+      doc
+        .fillColor(primaryColor)
+        .font('Helvetica-Bold')
+        .fontSize(11)
+        .text('CONSULTANT:', 330, infoY + 15);
+      doc.font('Helvetica').fontSize(10).fillColor(secondaryColor);
+      doc.text(invoiceData.consultantName, 330, infoY + 35);
       doc.text(
         invoiceData.consultantType || 'Professional Consultant',
-        337,
+        330,
         infoY + 50,
       );
       doc.text(
         `Session Date: ${new Date(invoiceData.date).toLocaleDateString()}`,
-        337,
+        330,
         infoY + 65,
       );
 
-      doc.moveDown(5);
+      doc.moveDown(6);
 
       // --- Table Section ---
-      const tableTop = 270;
+      const tableTop = 280;
 
-      // Table Header
+      // Table Header Background
       doc.rect(50, tableTop, 512, 30).fill(primaryColor);
+
+      // Table Header Text
       doc.fillColor('#ffffff').font('Helvetica-Bold').fontSize(10);
       doc.text('Description', 65, tableTop + 10);
       doc.text('Duration', 280, tableTop + 10);
@@ -145,26 +150,20 @@ const generateInvoicePDF = async (invoiceData: any): Promise<string> => {
         width: 530,
       });
 
-      currentY += 25;
+      currentY += 30;
+
+      // Separator Line
       doc
-        .moveTo(50, currentY - 5)
-        .lineTo(562, currentY - 5)
+        .moveTo(50, currentY)
+        .lineTo(562, currentY)
         .strokeColor(borderColor)
         .lineWidth(0.5)
         .stroke();
 
-      // Billable Minutes Row (Informational)
-      doc.fillColor(secondaryColor).fontSize(9);
-      doc.text(
-        `(Total billable minutes: ${invoiceData.billableMinutes})`,
-        65,
-        currentY,
-      );
-      doc.fillColor(primaryColor).fontSize(10);
-
-      currentY += 20;
+      currentY += 15;
 
       // Platform Fee Row
+      doc.fillColor(secondaryColor).fontSize(9);
       doc.text('Platform Service Fee', 65, currentY);
       doc.text('-', 280, currentY);
       doc.text('-', 380, currentY);
@@ -177,15 +176,20 @@ const generateInvoicePDF = async (invoiceData: any): Promise<string> => {
 
       // --- Summary Section ---
       const summaryX = 350;
+
+      // Summary Divider
       doc
         .moveTo(summaryX, currentY)
         .lineTo(562, currentY)
         .strokeColor(primaryColor)
         .lineWidth(1)
         .stroke();
+
       currentY += 15;
 
+      // Total Amount
       doc
+        .fillColor(primaryColor)
         .font('Helvetica-Bold')
         .fontSize(12)
         .text('TOTAL PAYABLE:', summaryX, currentY);
@@ -199,7 +203,7 @@ const generateInvoicePDF = async (invoiceData: any): Promise<string> => {
 
       currentY += 40;
 
-      // Payment Status Badge
+      // Status Badge Styling
       const status = (invoiceData.status || 'unpaid').toUpperCase();
       const statusColor = status === 'PAID' ? successColor : '#e67e22';
 
@@ -208,10 +212,28 @@ const generateInvoicePDF = async (invoiceData: any): Promise<string> => {
         .fillColor(secondaryColor)
         .font('Helvetica-Bold')
         .text('PAYMENT STATUS:', summaryX, currentY);
-      doc.fillColor(statusColor).text(status, summaryX + 110, currentY);
+
+      doc
+        .fillColor(statusColor)
+        .font('Helvetica-Bold')
+        .text(status, summaryX + 110, currentY);
+
+      currentY += 18;
+
+      // Payment Method
+      doc
+        .fontSize(10)
+        .fillColor(secondaryColor)
+        .font('Helvetica-Bold')
+        .text('PAYMENT METHOD:', summaryX, currentY);
+
+      doc
+        .fillColor(primaryColor)
+        .font('Helvetica')
+        .text(invoiceData.paymentMethod || 'Stripe', summaryX + 110, currentY);
 
       if (invoiceData.transactionId) {
-        currentY += 15;
+        currentY += 18;
         doc.fontSize(9).fillColor(secondaryColor).font('Helvetica');
         doc.text(
           `Transaction Ref: ${invoiceData.transactionId}`,
@@ -294,6 +316,18 @@ const getInvoiceDataFromDB = async (
     status: 'captured',
   });
 
+  let paymentMethod = 'Not Available';
+  if (transaction) {
+    if (transaction.provider === 'paypal') {
+      paymentMethod = 'PayPal';
+    } else if (transaction.provider === 'stripe') {
+      // Try to get specific method from metadata if available
+      paymentMethod = transaction.metadata?.payment_type || 'Card';
+      // Normalize common stripe values
+      if (paymentMethod === 'card') paymentMethod = 'Credit/Debit Card';
+    }
+  }
+
   const durationInSeconds =
     (consultation.consumedAmount / consultation.perMinuteRate) * 60;
   const billableMinutes = Math.ceil(
@@ -312,6 +346,7 @@ const getInvoiceDataFromDB = async (
     platformFee: consultation.platformFee,
     totalAmount: consultation.consumedAmount,
     status: consultation.paymentStatus,
+    paymentMethod,
     transactionId: transaction?.transactionId || null,
     user: {
       id: (consultation.user as any)._id,
@@ -354,7 +389,7 @@ const generateAndGetInvoicePDF = async (
       platformFee: data.platformFee,
       subtotal: data.subtotal,
       totalAmount: data.totalAmount,
-      paymentMethod: 'Stripe',
+      paymentMethod: data.paymentMethod,
       status: (data.status === 'pending' ? 'unpaid' : data.status) as any,
       pdfUrl,
     },
@@ -374,6 +409,22 @@ const finalizeInvoice = async (consultationId: string) => {
   );
   const subtotal = consultation.consumedAmount - consultation.platformFee;
 
+  // Find associated transaction to get provider
+  const transaction = await Transaction.findOne({
+    consultation: consultationId,
+    status: 'captured',
+  });
+
+  let paymentMethod = 'Stripe';
+  if (transaction) {
+    if (transaction.provider === 'paypal') {
+      paymentMethod = 'PayPal';
+    } else if (transaction.provider === 'stripe') {
+      paymentMethod = transaction.metadata?.payment_type || 'Card';
+      if (paymentMethod === 'card') paymentMethod = 'Credit/Debit Card';
+    }
+  }
+
   const invoiceData = {
     session: consultation._id,
     user: (consultation.user as any)._id,
@@ -384,7 +435,7 @@ const finalizeInvoice = async (consultationId: string) => {
     platformFee: consultation.platformFee,
     subtotal,
     totalAmount: consultation.consumedAmount,
-    paymentMethod: 'Stripe', // Get from transaction
+    paymentMethod,
     status: 'paid' as const,
   };
 
