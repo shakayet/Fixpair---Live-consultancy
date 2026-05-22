@@ -13,6 +13,7 @@ import { PayPalService } from './paypal.service';
 import { Transaction } from './payment.model';
 import config from '../../../config';
 import { socketHelper } from '../../../helpers/socketHelper';
+import { NotificationService } from '../notification/notification.service';
 
 /**
  * Billing Engine
@@ -249,6 +250,22 @@ const attemptMinuteCharge = async (
         status: 'success',
       },
     );
+
+    // Initial charge notification
+    if (isInitial && transaction) {
+      await NotificationService.sendNotification({
+        user: consultation.user._id.toString(),
+        title: 'Payment Successful',
+        message: `Your payment of $${chargeAmount.toFixed(2)} has been completed successfully.`,
+        type: 'PAYMENT_SUCCESS',
+        relatedBooking: consultationId,
+        metadata: {
+          amount: chargeAmount,
+          status: 'captured',
+          transactionId: transaction.transactionId,
+        },
+      });
+    }
   } catch (error) {
     console.error(`Billing failed for ${consultationId}:`, error);
     await handlePaymentFailure(consultationId);

@@ -10,6 +10,7 @@ import { User } from '../user/user.model';
 import { Transaction } from './payment.model';
 import { Consultation } from '../consultation/consultation.model';
 import { BillingService } from './billing.service';
+import { NotificationService } from '../notification/notification.service';
 import ApiError from '../../../errors/ApiError';
 import config from '../../../config';
 
@@ -146,10 +147,26 @@ const handleStripeWebhook = catchAsync(async (req: Request, res: Response) => {
       const consultationId = intent.metadata.consultationId;
 
       // Update transaction status if it exists
-      await Transaction.findOneAndUpdate(
+      const transaction = await Transaction.findOneAndUpdate(
         { transactionId: intent.id },
         { status: 'captured' },
+        { new: true },
       );
+
+      if (transaction) {
+        await NotificationService.sendNotification({
+          user: transaction.user.toString(),
+          title: 'Payment Successful',
+          message: `Your payment of $${(intent.amount / 100).toFixed(2)} has been completed successfully.`,
+          type: 'PAYMENT_SUCCESS',
+          relatedBooking: consultationId,
+          metadata: {
+            amount: intent.amount / 100,
+            status: 'captured',
+            transactionId: intent.id,
+          },
+        });
+      }
       break;
     }
 

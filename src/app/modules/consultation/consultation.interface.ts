@@ -35,6 +35,10 @@ export type IConsultation = {
     | 'cancelled'
     | 'expired';
   paymentStatus: 'pending' | 'paid' | 'failed';
+  remindersSent?: {
+    twentyFourHour: boolean;
+    oneHour: boolean;
+  };
   cancelledAt?: Date;
   cancelReason?: string;
   cancelledBy?: Types.ObjectId;

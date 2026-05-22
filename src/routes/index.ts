@@ -13,6 +13,8 @@ import { PaymentRoutes } from '../app/modules/payment/payment.route';
 import { AdminRoutes } from '../app/modules/admin/admin.route';
 import { RecommendationRoutes } from '../app/modules/recommendation/recommendation.route';
 import { TranscriptionRoutes } from '../app/modules/transcription/transcription.route';
+import { NotificationRoutes } from '../app/modules/notification/notification.route';
+
 const router = express.Router();
 
 const apiRoutes = [
@@ -71,6 +73,10 @@ const apiRoutes = [
   {
     path: '/transcription',
     route: TranscriptionRoutes,
+  },
+  {
+    path: '/notification',
+    route: NotificationRoutes,
   },
 ];
 

@@ -12,6 +12,7 @@ import { ISlot } from './consultation.interface';
 import { User } from '../user/user.model';
 import { USER_ROLES } from '../../../enums/user';
 import config from '../../../config';
+import { NotificationService } from '../notification/notification.service';
 
 const setAvailability = async (user: JwtPayload, slots: ISlot[]) => {
   const consultantId = user.id;
@@ -320,7 +321,34 @@ const updateBookingStatus = async (
     const result = await Consultation.findByIdAndUpdate(bookingId, updateData, {
       new: true,
       session,
-    });
+    }).populate('consultant');
+
+    if (result && (status === 'accepted' || status === 'rejected')) {
+      const consultantName = (result.consultant as any).name;
+      const date = result.date
+        ? new Date(result.date).toLocaleDateString()
+        : '';
+      const time = result.startTime || '';
+
+      const message =
+        status === 'accepted'
+          ? `Your consultation request has been accepted by ${consultantName}.`
+          : `Your consultation request has been rejected by ${consultantName}.`;
+
+      await NotificationService.sendNotification({
+        user: result.user.toString(),
+        title: `Consultation ${status === 'accepted' ? 'Accepted' : 'Rejected'}`,
+        message,
+        type: 'CONSULTATION_STATUS',
+        relatedBooking: result._id.toString(),
+        metadata: {
+          consultantName,
+          status: status === 'accepted' ? 'accepted' : 'rejected',
+          date,
+          time,
+        },
+      });
+    }
 
     await session.commitTransaction();
     session.endSession();

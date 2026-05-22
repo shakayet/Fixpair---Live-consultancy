@@ -124,6 +124,10 @@ const consultationSchema = new Schema<IConsultation>(
       enum: ['pending', 'paid', 'failed'],
       default: 'pending',
     },
+    remindersSent: {
+      twentyFourHour: { type: Boolean, default: false },
+      oneHour: { type: Boolean, default: false },
+    },
     cancelledAt: {
       type: Date,
       default: null,
