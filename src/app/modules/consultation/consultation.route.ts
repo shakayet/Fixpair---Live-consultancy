@@ -7,7 +7,7 @@ import { ConsultationValidation } from './consultation.validation';
 
 const router = express.Router();
 
-// Consultant: Manage availability
+// Consultant: Manage unavailable slots
 router.post(
   '/availability',
   auth(USER_ROLES.CONSULTANT),
@@ -15,7 +15,7 @@ router.post(
   ConsultationController.setAvailability,
 );
 
-// User: View available slots for a consultant
+// User: View unavailable and booked slots for a consultant
 router.get(
   '/available-slots/:consultantId',
   validateRequest(ConsultationValidation.getAvailableSlotsZodSchema),

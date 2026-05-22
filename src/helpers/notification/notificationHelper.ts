@@ -7,23 +7,32 @@ import { logger, errorLogger } from '../../shared/logger';
 let isFcmInitialized = false;
 
 try {
-  if (config.fcm.serviceAccountBase64) {
-    // Decoded service account from base64 string in .env
-    const decodedServiceAccount = Buffer.from(
-      config.fcm.serviceAccountBase64,
-      'base64',
-    ).toString('utf-8');
+  if (admin.apps.length === 0) {
+    if (config.fcm.serviceAccountBase64) {
+      // Decoded service account from base64 string in .env
+      const decodedServiceAccount = Buffer.from(
+        config.fcm.serviceAccountBase64,
+        'base64',
+      ).toString('utf-8');
 
-    const serviceAccount = JSON.parse(decodedServiceAccount);
+      const serviceAccount = JSON.parse(decodedServiceAccount);
 
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
-    });
+      admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount),
+      });
 
-    isFcmInitialized = true;
-    logger.info('✓ Firebase Admin initialized successfully');
+      isFcmInitialized = true;
+      logger.info('✓ Firebase Admin initialized successfully');
+    } else {
+      logger.warn(
+        '! Firebase Service Account Base64 is missing in .env (FCM_SERVICE_ACCOUNT_BASE64)',
+      );
+      logger.info(
+        'Note: If you have an FCM_SERVER_KEY, please note that this project uses the modern Firebase Admin SDK which requires a Service Account JSON (base64 encoded).',
+      );
+    }
   } else {
-    logger.warn('! Firebase Service Account Base64 is missing in .env');
+    isFcmInitialized = true;
   }
 } catch (error) {
   errorLogger.error('Failed to initialize Firebase Admin:', error);
@@ -50,19 +59,28 @@ const sendPushNotification = async (
 
   const message: admin.messaging.MulticastMessage = {
     tokens: tokenList,
+    notification: {
+      title: data.title || 'Notification',
+      body: data.body || '',
+    },
     data,
     android: {
       priority: 'high',
+      notification: {
+        channelId: 'default',
+        sound: 'default',
+      },
     },
     apns: {
       payload: {
         aps: {
           contentAvailable: true,
+          sound: 'default',
         },
       },
       headers: {
         'apns-priority': '10',
-        'apns-push-type': 'background',
+        'apns-push-type': 'alert',
       },
     },
   };

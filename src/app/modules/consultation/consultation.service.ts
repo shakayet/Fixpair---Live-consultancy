@@ -27,21 +27,22 @@ const setAvailability = async (user: JwtPayload, slots: ISlot[]) => {
     if (slotDate < now || slotDate > thirtyDaysLater) {
       throw new ApiError(
         StatusCodes.BAD_REQUEST,
-        'Slots must be within the next 30 days',
+        'Unavailable slots must be within the next 30 days',
       );
     }
   });
 
-  // 2. Check for overlapping slots in the input
-  // (Simple version: just ensure uniqueness of date+time for this consultant)
-
-  // 3. Upsert availability
+  // 2. Upsert availability (Unavailable slots)
   const result = await Availability.findOneAndUpdate(
     { consultant: consultantId },
     {
       $set: {
         consultant: consultantId,
-        slots: slots.map(s => ({ ...s, isBooked: false })),
+        slots: slots.map(s => ({
+          date: new Date(s.date),
+          startTime: s.startTime,
+          endTime: s.endTime,
+        })),
       },
     },
     { upsert: true, new: true },
@@ -51,30 +52,44 @@ const setAvailability = async (user: JwtPayload, slots: ISlot[]) => {
 };
 
 const getAvailableSlots = async (consultantId: string, date?: string) => {
+  // 1. Find the unavailable slots for the consultant
   const availability = await Availability.findOne({ consultant: consultantId });
-  if (!availability) {
-    return [];
-  }
+  const unavailableSlots = availability ? availability.slots : [];
 
-  // Filter only unbooked slots
-  let slots = availability.slots.filter(slot => !slot.isBooked);
+  // 2. Find already booked slots (accepted, confirmed, completed)
+  const filter: any = {
+    consultant: new mongoose.Types.ObjectId(consultantId),
+    status: { $in: ['accepted', 'confirmed', 'completed', 'pending'] },
+    bookingType: 'scheduled',
+  };
 
-  // If date is provided, filter by that specific date
   if (date) {
-    // Ensure we compare only the date part (YYYY-MM-DD)
-    const targetDate = new Date(date).toISOString().split('T')[0];
-    slots = slots.filter(slot => {
-      const slotDate = new Date(slot.date).toISOString().split('T')[0];
-      return slotDate === targetDate;
-    });
+    const targetDate = new Date(date);
+    targetDate.setHours(0, 0, 0, 0);
+    const nextDay = new Date(targetDate.getTime() + 24 * 60 * 60 * 1000);
+    filter.date = { $gte: targetDate, $lt: nextDay };
   } else {
-    // If no date provided, only show future slots (including today)
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    slots = slots.filter(slot => new Date(slot.date) >= today);
+    filter.date = { $gte: today };
   }
 
-  return slots;
+  const bookedConsultations = await Consultation.find(filter).select(
+    'date startTime endTime',
+  );
+
+  return {
+    unavailableSlots: unavailableSlots.map(s => ({
+      date: s.date,
+      startTime: s.startTime,
+      endTime: s.endTime,
+    })),
+    bookedSlots: bookedConsultations.map(c => ({
+      date: c.date,
+      startTime: c.startTime,
+      endTime: c.endTime,
+    })),
+  };
 };
 
 const createBooking = async (
@@ -82,12 +97,22 @@ const createBooking = async (
   payload: {
     consultantId: string;
     bookingType: 'scheduled' | 'instant' | 'callback';
-    slotId?: string;
+    date?: string;
+    startTime?: string;
+    endTime?: string;
     preferredWindow?: 'asap' | 'today' | 'tomorrow';
     notes?: string;
   },
 ) => {
-  const { consultantId, bookingType, slotId, preferredWindow, notes } = payload;
+  const {
+    consultantId,
+    bookingType,
+    date,
+    startTime,
+    endTime,
+    preferredWindow,
+    notes,
+  } = payload;
   const userId = user.id;
 
   // 0. Validate if consultantId is a valid consultant
@@ -100,91 +125,86 @@ const createBooking = async (
   const platformFee = config.payment.billing.platformFee;
 
   if (bookingType === 'scheduled') {
-    if (!slotId) {
+    if (!date || !startTime || !endTime) {
       throw new ApiError(
         StatusCodes.BAD_REQUEST,
-        'Slot ID is required for scheduled booking',
+        'Date, startTime, and endTime are required for scheduled booking',
       );
     }
 
-    const session = await mongoose.startSession();
-    session.startTransaction();
+    const slotDate = new Date(date);
+    slotDate.setHours(0, 0, 0, 0);
 
-    try {
-      // 1. Find the availability and the specific slot
-      const availability = await Availability.findOne({
-        consultant: new mongoose.Types.ObjectId(consultantId),
-        'slots._id': new mongoose.Types.ObjectId(slotId),
-        'slots.isBooked': false,
-      }).session(session);
-
-      if (!availability) {
-        throw new ApiError(StatusCodes.NOT_FOUND, 'Available slot not found');
-      }
-
-      const slot = availability.slots.find(s => s._id?.toString() === slotId);
-      if (!slot) {
-        throw new ApiError(StatusCodes.NOT_FOUND, 'Slot not found');
-      }
-
-      // 2. Validate 30-day window
-      const now = new Date();
-      const thirtyDaysLater = new Date();
-      thirtyDaysLater.setDate(now.getDate() + 30);
-      const slotDate = new Date(slot.date);
-
-      if (slotDate < now || slotDate > thirtyDaysLater) {
-        throw new ApiError(
-          StatusCodes.BAD_REQUEST,
-          'Booking must be within the next 30 days',
-        );
-      }
-
-      // 3. Mark slot as booked
-      const updatedAvailability = await Availability.findOneAndUpdate(
-        {
-          consultant: new mongoose.Types.ObjectId(consultantId),
-          'slots._id': new mongoose.Types.ObjectId(slotId),
-          'slots.isBooked': false,
+    // 1. Check if slot is marked as UNAVAILABLE by consultant
+    const availability = await Availability.findOne({
+      consultant: new mongoose.Types.ObjectId(consultantId),
+      slots: {
+        $elemMatch: {
+          date: slotDate,
+          startTime: startTime,
+          endTime: endTime,
         },
-        { $set: { 'slots.$.isBooked': true } },
-        { session, new: true },
+      },
+    });
+
+    if (availability) {
+      throw new ApiError(
+        StatusCodes.BAD_REQUEST,
+        'This slot is marked unavailable by the consultant',
       );
-
-      if (!updatedAvailability) {
-        throw new ApiError(
-          StatusCodes.CONFLICT,
-          'Slot was already booked by someone else',
-        );
-      }
-
-      // 4. Create the consultation record
-      const consultationData: any = {
-        user: new mongoose.Types.ObjectId(userId),
-        consultant: new mongoose.Types.ObjectId(consultantId),
-        bookingType: 'scheduled',
-        slotId: new mongoose.Types.ObjectId(slotId),
-        date: slot.date,
-        startTime: slot.startTime,
-        endTime: slot.endTime,
-        status: 'pending', // Scheduled bookings start as pending until consultant accepts
-        paymentStatus: 'pending',
-        perMinuteRate,
-        platformFee,
-      };
-      if (notes) consultationData.notes = notes;
-
-      const result = await Consultation.create([consultationData], { session });
-
-      await session.commitTransaction();
-      session.endSession();
-
-      return result[0];
-    } catch (error) {
-      await session.abortTransaction();
-      session.endSession();
-      throw error;
     }
+
+    // 2. Check if slot is ALREADY BOOKED
+    const existingBooking = await Consultation.findOne({
+      consultant: new mongoose.Types.ObjectId(consultantId),
+      date: slotDate,
+      startTime: startTime,
+      endTime: endTime,
+      status: {
+        $in: ['pending', 'accepted', 'confirmed', 'completed'],
+      },
+    });
+
+    if (existingBooking) {
+      throw new ApiError(StatusCodes.CONFLICT, 'This slot is already booked');
+    }
+
+    // 3. Validate 30-day window
+    const now = new Date();
+    const thirtyDaysLater = new Date();
+    thirtyDaysLater.setDate(now.getDate() + 30);
+
+    if (slotDate < now && slotDate.toDateString() !== now.toDateString()) {
+      throw new ApiError(
+        StatusCodes.BAD_REQUEST,
+        'Booking date cannot be in the past',
+      );
+    }
+
+    if (slotDate > thirtyDaysLater) {
+      throw new ApiError(
+        StatusCodes.BAD_REQUEST,
+        'Booking must be within the next 30 days',
+      );
+    }
+
+    // 4. Create the consultation record
+    const consultationData: any = {
+      user: new mongoose.Types.ObjectId(userId),
+      consultant: new mongoose.Types.ObjectId(consultantId),
+      bookingType: 'scheduled',
+      date: slotDate,
+      startTime: startTime,
+      endTime: endTime,
+      status: 'pending',
+      paymentStatus: 'pending',
+      perMinuteRate,
+      platformFee,
+    };
+    if (notes) consultationData.notes = notes;
+
+    const result = await Consultation.create(consultationData);
+    return result;
   } else if (bookingType === 'instant') {
     // Instant booking: starts as pending
     const instantBookingData: any = {
@@ -294,21 +314,6 @@ const updateBookingStatus = async (
       );
     }
 
-    // If cancelling or rejecting a scheduled booking, free up the slot
-    if (
-      (status === 'cancelled' || status === 'rejected') &&
-      booking.status !== 'cancelled' &&
-      booking.status !== 'rejected' &&
-      booking.bookingType === 'scheduled' &&
-      booking.slotId
-    ) {
-      await Availability.findOneAndUpdate(
-        { consultant: booking.consultant, 'slots._id': booking.slotId },
-        { $set: { 'slots.$.isBooked': false } },
-        { session },
-      );
-    }
-
     // Additional logic for callback or instant bookings
     // Map 'accepted' to 'confirmed' as per requirement
     const updateData: any = {
@@ -360,30 +365,12 @@ const updateBookingStatus = async (
   }
 };
 
-const deleteExpiredSlots = async () => {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  const result = await Availability.updateMany(
-    {},
-    {
-      $pull: {
-        slots: {
-          date: { $lt: today },
-        },
-      },
-    },
-  );
-
-  return result;
-};
-
 const rescheduleBooking = async (
   user: JwtPayload,
   bookingId: string,
-  payload: { newSlotId: string },
+  payload: { date: string; startTime: string; endTime: string },
 ) => {
-  const { newSlotId } = payload;
+  const { date, startTime, endTime } = payload;
   const userId = user.id;
 
   const session = await mongoose.startSession();
@@ -401,8 +388,8 @@ const rescheduleBooking = async (
       throw new ApiError(StatusCodes.FORBIDDEN, 'Unauthorized access');
     }
 
-    // 2. Validate booking type (only scheduled bookings can be rescheduled via slots)
-    if (booking.bookingType !== 'scheduled' || !booking.slotId) {
+    // 2. Validate booking type
+    if (booking.bookingType !== 'scheduled') {
       throw new ApiError(
         StatusCodes.BAD_REQUEST,
         'Only scheduled bookings can be rescheduled',
@@ -410,7 +397,6 @@ const rescheduleBooking = async (
     }
 
     // 3. Validate 6-hour rule
-    // slot.date is Date, startTime is "HH:mm"
     const [hours, minutes] = booking.startTime!.split(':').map(Number);
     const bookingDateTime = new Date(booking.date!);
     bookingDateTime.setHours(hours, minutes, 0, 0);
@@ -425,61 +411,49 @@ const rescheduleBooking = async (
       );
     }
 
-    // 4. Find the new availability slot
+    const newSlotDate = new Date(date);
+    newSlotDate.setHours(0, 0, 0, 0);
+
+    // 4. Check if new slot is UNAVAILABLE
     const availability = await Availability.findOne({
       consultant: booking.consultant,
-      'slots._id': new mongoose.Types.ObjectId(newSlotId),
-      'slots.isBooked': false,
+      slots: {
+        $elemMatch: {
+          date: newSlotDate,
+          startTime: startTime,
+          endTime: endTime,
+        },
+      },
     }).session(session);
 
-    if (!availability) {
+    if (availability) {
       throw new ApiError(
-        StatusCodes.NOT_FOUND,
-        'New selected slot is not available',
+        StatusCodes.BAD_REQUEST,
+        'This slot is marked unavailable by the consultant',
       );
     }
 
-    const newSlot = availability.slots.find(
-      s => s._id?.toString() === newSlotId,
-    );
-    if (!newSlot) {
-      throw new ApiError(StatusCodes.NOT_FOUND, 'New slot not found');
+    // 5. Check if new slot is ALREADY BOOKED
+    const existingBooking = await Consultation.findOne({
+      consultant: booking.consultant,
+      date: newSlotDate,
+      startTime: startTime,
+      endTime: endTime,
+      status: {
+        $in: ['pending', 'accepted', 'confirmed', 'completed'],
+      },
+      _id: { $ne: booking._id }, // Exclude current booking
+    }).session(session);
+
+    if (existingBooking) {
+      throw new ApiError(StatusCodes.CONFLICT, 'This slot is already booked');
     }
 
-    // 5. Release the old slot
-    await Availability.findOneAndUpdate(
-      {
-        consultant: booking.consultant,
-        'slots._id': booking.slotId,
-      },
-      { $set: { 'slots.$.isBooked': false } },
-      { session },
-    );
-
-    // 6. Book the new slot
-    const updatedAvailability = await Availability.findOneAndUpdate(
-      {
-        consultant: booking.consultant,
-        'slots._id': new mongoose.Types.ObjectId(newSlotId),
-        'slots.isBooked': false,
-      },
-      { $set: { 'slots.$.isBooked': true } },
-      { session, new: true },
-    );
-
-    if (!updatedAvailability) {
-      throw new ApiError(
-        StatusCodes.CONFLICT,
-        'New slot was already booked by someone else',
-      );
-    }
-
-    // 7. Update the booking record
-    booking.slotId = new mongoose.Types.ObjectId(newSlotId);
-    booking.date = newSlot.date;
-    booking.startTime = newSlot.startTime;
-    booking.endTime = newSlot.endTime;
-    booking.status = 'pending'; // Automatically revert to pending
+    // 6. Update the booking record
+    booking.date = newSlotDate;
+    booking.startTime = startTime;
+    booking.endTime = endTime;
+    booking.status = 'pending';
 
     await booking.save({ session });
 
@@ -564,15 +538,6 @@ const cancelBooking = async (
       booking.cancelReason = cancelReason;
     }
 
-    // 6. If it was a scheduled booking, free up the slot
-    if (booking.bookingType === 'scheduled' && booking.slotId) {
-      await Availability.findOneAndUpdate(
-        { consultant: booking.consultant, 'slots._id': booking.slotId },
-        { $set: { 'slots.$.isBooked': false } },
-        { session },
-      );
-    }
-
     await booking.save({ session });
 
     await session.commitTransaction();
@@ -609,7 +574,6 @@ export const ConsultationService = {
   createBooking,
   getMyBookings,
   updateBookingStatus,
-  deleteExpiredSlots,
   getConsultantTotalConsultations,
   rescheduleBooking,
   cancelBooking,

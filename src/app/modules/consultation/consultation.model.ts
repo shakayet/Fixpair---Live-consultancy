@@ -1,7 +1,7 @@
 import { Schema, model } from 'mongoose';
 import { IAvailability, IConsultation } from './consultation.interface';
 
-// Availability Schema (Consultant's time slots)
+// Availability Schema (Consultant's UNAVAILABLE time slots)
 const availabilitySchema = new Schema<IAvailability>(
   {
     consultant: {
@@ -14,7 +14,6 @@ const availabilitySchema = new Schema<IAvailability>(
         date: { type: Date, required: true },
         startTime: { type: String, required: true },
         endTime: { type: String, required: true },
-        isBooked: { type: Boolean, default: false },
       },
     ],
   },
@@ -46,10 +45,6 @@ const consultationSchema = new Schema<IConsultation>(
       type: String,
       enum: ['scheduled', 'instant', 'callback'],
       required: true,
-    },
-    slotId: {
-      type: Schema.Types.ObjectId,
-      required: false,
     },
     date: {
       type: Date,
@@ -145,9 +140,8 @@ const consultationSchema = new Schema<IConsultation>(
   { timestamps: true },
 );
 
-consultationSchema.index({ consultant: 1, date: 1 });
+consultationSchema.index({ consultant: 1, date: 1, startTime: 1, endTime: 1 });
 consultationSchema.index({ user: 1 });
-consultationSchema.index({ slotId: 1 }, { unique: true, sparse: true }); // Prevent double booking of the same slotId, sparse to allow multiple nulls/missing values
 
 export const Consultation = model<IConsultation>(
   'Consultation',

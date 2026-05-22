@@ -1,3 +1,5 @@
+/* eslint-disable no-unused-vars */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import cron from 'node-cron';
 import { ConsultationService } from '../modules/consultation/consultation.service';
@@ -6,17 +8,6 @@ import { Consultation } from '../modules/consultation/consultation.model';
 import { logger } from '../../shared/logger';
 
 const cronJobs = () => {
-  // Run every day at midnight (00:00)
-  cron.schedule('0 0 * * *', async () => {
-    logger.info('Running cron job: deleteExpiredSlots');
-    try {
-      await ConsultationService.deleteExpiredSlots();
-      logger.info('Cron job completed: deleteExpiredSlots');
-    } catch (error) {
-      logger.error('Cron job failed: deleteExpiredSlots', error);
-    }
-  });
-
   // Run every hour to check for consultation reminders
   cron.schedule('0 * * * *', async () => {
     logger.info('Running cron job: consultationReminders');

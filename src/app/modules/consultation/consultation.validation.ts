@@ -18,7 +18,9 @@ const createBookingZodSchema = z.object({
     bookingType: z.enum(['scheduled', 'instant', 'callback'], {
       required_error: 'Booking type is required',
     }),
-    slotId: z.string().optional(),
+    date: z.string().optional(),
+    startTime: z.string().optional(),
+    endTime: z.string().optional(),
     preferredWindow: z.enum(['asap', 'today', 'tomorrow']).optional(),
     notes: z.string().optional(),
   }),
@@ -49,7 +51,9 @@ const getAvailableSlotsZodSchema = z.object({
 
 const rescheduleBookingZodSchema = z.object({
   body: z.object({
-    newSlotId: z.string({ required_error: 'New Slot ID is required' }),
+    date: z.string({ required_error: 'Date is required' }),
+    startTime: z.string({ required_error: 'Start time is required' }),
+    endTime: z.string({ required_error: 'End time is required' }),
   }),
 });
 

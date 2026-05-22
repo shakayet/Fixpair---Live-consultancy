@@ -5,14 +5,12 @@ export type ISlot = {
   date: Date;
   startTime: string; // HH:mm format
   endTime: string; // HH:mm format
-  isBooked: boolean;
 };
 
 export type IConsultation = {
   user: Types.ObjectId;
   consultant: Types.ObjectId;
   bookingType: 'scheduled' | 'instant' | 'callback';
-  slotId?: Types.ObjectId; // For scheduled bookings
   date?: Date;
   startTime?: string;
   endTime?: string;
