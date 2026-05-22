@@ -38,7 +38,10 @@ const reviewSchema = new Schema<IReview>(
 );
 
 // Indexes for optimized queries
-reviewSchema.index({ consultant: 1 });
+reviewSchema.index({ consultant: 1, createdAt: -1 });
+reviewSchema.index({ consultant: 1, status: 1, createdAt: -1 });
+reviewSchema.index({ status: 1, createdAt: -1 });
 reviewSchema.index({ consultation: 1 }, { unique: true });
+reviewSchema.index({ createdAt: -1 });
 
 export const Review = model<IReview>('Review', reviewSchema);

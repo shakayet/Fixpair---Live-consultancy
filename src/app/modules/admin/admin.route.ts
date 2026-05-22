@@ -35,4 +35,10 @@ router.get(
   AdminController.getRevenueTrend,
 );
 
+router.get(
+  '/monitor',
+  auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN),
+  AdminController.getSystemMonitor,
+);
+
 export const AdminRoutes = router;

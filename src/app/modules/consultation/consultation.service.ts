@@ -13,6 +13,8 @@ import { User } from '../user/user.model';
 import { USER_ROLES } from '../../../enums/user';
 import config from '../../../config';
 import { NotificationService } from '../notification/notification.service';
+import { User } from '../user/user.model';
+import { cacheHelper } from '../../utils/cache';
 
 const setAvailability = async (user: JwtPayload, slots: ISlot[]) => {
   const consultantId = user.id;
@@ -369,6 +371,15 @@ const updateBookingStatus = async (
       new: true,
       session,
     }).populate('consultant');
+
+    if (result && status === 'completed') {
+      await User.findByIdAndUpdate(result.consultant, {
+        $inc: { totalConsultations: 1 },
+      });
+      // Invalidate related caches
+      cacheHelper.clearByPrefix('consultants:recommended');
+      cacheHelper.clearByPrefix(`consultants:list`);
+    }
 
     if (result && (status === 'accepted' || status === 'rejected')) {
       const consultantName = (result.consultant as any).name;

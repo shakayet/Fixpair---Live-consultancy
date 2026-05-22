@@ -1,105 +1,53 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { User } from '../user/user.model';
 import { USER_ROLES } from '../../../enums/user';
+import { cacheHelper } from '../../utils/cache';
+import { monitorDB } from '../../utils/db-perf';
 
 const getRecommendedConsultants = async () => {
-  const recommendationAggregation = await User.aggregate([
-    // 1. Match active and approved consultants
-    {
-      $match: {
-        role: USER_ROLES.CONSULTANT,
-        status: 'active',
-        verified: true,
-        consultancyType: { $ne: null },
-      },
-    },
-    // 2. Lookup reviews to calculate average rating
-    {
-      $lookup: {
-        from: 'reviews',
-        localField: '_id',
-        foreignField: 'consultant',
-        as: 'reviews',
-      },
-    },
-    // 3. Lookup consultations to count completed ones
-    {
-      $lookup: {
-        from: 'consultations',
-        let: { consultantId: '$_id' },
-        pipeline: [
-          {
-            $match: {
-              $expr: {
-                $and: [
-                  { $eq: ['$consultant', '$$consultantId'] },
-                  { $eq: ['$status', 'completed'] },
-                ],
-              },
-            },
-          },
-        ],
-        as: 'completedConsultations',
-      },
-    },
-    // 4. Calculate stats and project required fields
-    {
-      $addFields: {
-        averageRating: { $ifNull: [{ $avg: '$reviews.rating' }, 0] },
-        totalConsultations: { $size: '$completedConsultations' },
-      },
-    },
-    // 5. Add requested fields (rating, tag, activeStatus)
-    {
-      $addFields: {
-        rating: '$averageRating',
-        tag: 'Recommended',
-      },
-    },
-    // 6. Sort by category, then by ranking criteria
-    {
-      $sort: {
+  const cacheKey = 'consultants:recommended';
+  const cachedData = cacheHelper.get<any>(cacheKey);
+  if (cachedData) return cachedData;
+
+  const consultants = await monitorDB('getRecommendedConsultants', () =>
+    User.find({
+      role: USER_ROLES.CONSULTANT,
+      status: 'active',
+      verified: true,
+      consultancyType: { $ne: null },
+    })
+      .select(
+        'name firstName lastName consultancyType expertise averageRating totalConsultations totalReviews perMinuteRate visitFee image avatar activeStatus',
+      )
+      .sort({
         consultancyType: 1,
         averageRating: -1,
         totalConsultations: -1,
-      },
-    },
-    // 7. Project clean response fields
-    {
-      $project: {
-        _id: 1,
-        name: 1,
-        firstName: 1,
-        lastName: 1,
-        consultancyType: 1,
-        expertise: 1,
-        averageRating: 1,
-        rating: 1,
-        totalConsultations: 1,
-        perMinuteRate: 1,
-        visitFee: 1,
-        image: 1,
-        avatar: 1,
-        tag: 1,
-        activeStatus: 1,
-      },
-    },
-    // 8. Group by category and slice top 5
-    {
-      $group: {
-        _id: '$consultancyType',
-        consultants: { $push: '$$ROOT' },
-      },
-    },
-    {
-      $project: {
-        category: '$_id',
-        consultants: { $slice: ['$consultants', 5] },
-        _id: 0,
-      },
-    },
-  ]);
+      })
+      .lean(),
+  );
 
-  return recommendationAggregation;
+  // Group by category and slice top 5 manually (faster than aggregation for this size)
+  const grouped: Record<string, any[]> = {};
+  consultants.forEach(c => {
+    const type = c.consultancyType as string;
+    if (!grouped[type]) grouped[type] = [];
+    if (grouped[type].length < 5) {
+      grouped[type].push({
+        ...c,
+        rating: c.averageRating,
+        tag: 'Recommended',
+      });
+    }
+  });
+
+  const result = Object.entries(grouped).map(([category, consultants]) => ({
+    category,
+    consultants,
+  }));
+
+  cacheHelper.set(cacheKey, result, 300); // 5 mins
+  return result;
 };
 
 export const RecommendationService = {

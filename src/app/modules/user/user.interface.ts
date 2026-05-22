@@ -44,6 +44,9 @@ export type IUser = {
   };
   fcmTokens: string[];
   deviceType?: 'android' | 'ios';
+  averageRating?: number;
+  totalReviews?: number;
+  totalConsultations?: number;
 };
 
 export type UserModal = {

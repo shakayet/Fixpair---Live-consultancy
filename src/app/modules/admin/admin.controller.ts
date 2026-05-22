@@ -3,6 +3,7 @@ import { StatusCodes } from 'http-status-codes';
 import catchAsync from '../../../shared/catchAsync';
 import sendResponse from '../../../shared/sendResponse';
 import { AdminService } from './admin.service';
+import { getSystemMetrics } from '../../utils/system';
 
 const getDashboardSummary = catchAsync(async (req: Request, res: Response) => {
   const result = await AdminService.getDashboardSummary();
@@ -62,10 +63,22 @@ const getRevenueTrend = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const getSystemMonitor = catchAsync(async (req: Request, res: Response) => {
+  const result = getSystemMetrics();
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'System metrics retrieved successfully',
+    data: result,
+  });
+});
+
 export const AdminController = {
   getDashboardSummary,
   getActiveConsultations,
   getRevenueSummary,
   getAllTransactions,
   getRevenueTrend,
+  getSystemMonitor,
 };

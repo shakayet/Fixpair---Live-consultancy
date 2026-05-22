@@ -144,7 +144,18 @@ const userSchema = new Schema<IUser, UserModal>(
     deviceType: {
       type: String,
       enum: ['android', 'ios'],
-      default: null,
+    },
+    averageRating: {
+      type: Number,
+      default: 0,
+    },
+    totalReviews: {
+      type: Number,
+      default: 0,
+    },
+    totalConsultations: {
+      type: Number,
+      default: 0,
     },
   },
   {
@@ -206,5 +217,16 @@ userSchema.pre('save', async function (next) {
   }
   next();
 });
+
+// Indexes for performance
+userSchema.index({ role: 1, status: 1 });
+userSchema.index({
+  role: 1,
+  status: 1,
+  averageRating: -1,
+  totalConsultations: -1,
+});
+userSchema.index({ consultancyType: 1 }, { sparse: true });
+userSchema.index({ activeStatus: 1 });
 
 export const User = model<IUser, UserModal>('User', userSchema);

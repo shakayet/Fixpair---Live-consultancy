@@ -11,6 +11,7 @@ import QueryBuilder from '../../builder/QueryBuilder';
 import { IUser } from './user.interface';
 import { User } from './user.model';
 import { ReviewService } from '../review/review.service';
+import { cacheHelper } from '../../utils/cache';
 
 const getAllUsersToDB = async (query: Record<string, unknown>) => {
   const userQuery = new QueryBuilder(
@@ -28,18 +29,23 @@ const getAllUsersToDB = async (query: Record<string, unknown>) => {
   const result = await userQuery.modelQuery.lean();
   const meta = await userQuery.getPaginationInfo();
 
-  // If fetching consultants, attach their stats
-  const resultWithStats = await Promise.all(
-    result.map(async (user: any) => {
-      if (user.role === USER_ROLES.CONSULTANT) {
-        const stats = await ReviewService.getConsultantStats(
-          user._id.toString(),
-        );
-        return { ...user, stats };
-      }
-      return user;
-    }),
-  );
+  // If fetching consultants, attach their stats efficiently
+  const consultantIds = result
+    .filter((user: any) => user.role === USER_ROLES.CONSULTANT)
+    .map((user: any) => user._id.toString());
+
+  const statsMap = await ReviewService.getBulkConsultantStats(consultantIds);
+
+  const resultWithStats = result.map((user: any) => {
+    if (user.role === USER_ROLES.CONSULTANT) {
+      const stats = statsMap[user._id.toString()] || {
+        avgRating: 0,
+        totalReviews: 0,
+      };
+      return { ...user, stats };
+    }
+    return user;
+  });
 
   return { result: resultWithStats, meta };
 };
@@ -134,6 +140,12 @@ const updateProfileToDB = async (
     '-authentication -password -fcmTokens -stripeCustomerId -paypalPayerId',
   );
 
+  if (updateDoc) {
+    // Invalidate consultant related caches
+    cacheHelper.clearByPrefix('consultants:recommended');
+    cacheHelper.clearByPrefix(`consultants:list`);
+  }
+
   return updateDoc;
 };
 
@@ -215,6 +227,10 @@ const getSingleUserFromDB = async (id: string): Promise<Partial<IUser>> => {
 };
 
 const getConsultantsFromDB = async (query: Record<string, unknown>) => {
+  const cacheKey = `consultants:list:${JSON.stringify(query)}`;
+  const cachedData = cacheHelper.get<any>(cacheKey);
+  if (cachedData) return cachedData;
+
   // Use searchTerm for name filtering if name is provided in query
   const queryData = { ...query };
   if (queryData.name) {
@@ -240,17 +256,21 @@ const getConsultantsFromDB = async (query: Record<string, unknown>) => {
   const result = await consultantQuery.modelQuery.lean();
   const meta = await consultantQuery.getPaginationInfo();
 
-  // Attach stats for each consultant
-  const resultWithStats = await Promise.all(
-    result.map(async (consultant: any) => {
-      const stats = await ReviewService.getConsultantStats(
-        consultant._id.toString(),
-      );
-      return { ...consultant, stats };
-    }),
-  );
+  // Attach stats for each consultant efficiently
+  const consultantIds = result.map((c: any) => c._id.toString());
+  const statsMap = await ReviewService.getBulkConsultantStats(consultantIds);
 
-  return { result: resultWithStats, meta };
+  const resultWithStats = result.map((consultant: any) => {
+    const stats = statsMap[consultant._id.toString()] || {
+      avgRating: 0,
+      totalReviews: 0,
+    };
+    return { ...consultant, stats };
+  });
+
+  const response = { result: resultWithStats, meta };
+  cacheHelper.set(cacheKey, response, 300); // 5 mins
+  return response;
 };
 
 const updateDeviceTokenToDB = async (
