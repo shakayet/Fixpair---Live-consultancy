@@ -42,8 +42,21 @@ const markAllAsRead = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const getUnreadCount = catchAsync(async (req: Request, res: Response) => {
+  const user = req.user as any;
+  const result = await NotificationService.getUnreadCount(user);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'Unread notification count retrieved successfully',
+    data: result,
+  });
+});
+
 export const NotificationController = {
   getMyNotifications,
   markAsRead,
   markAllAsRead,
+  getUnreadCount,
 };

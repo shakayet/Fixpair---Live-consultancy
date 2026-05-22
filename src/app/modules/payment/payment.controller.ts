@@ -146,16 +146,18 @@ const handleStripeWebhook = catchAsync(async (req: Request, res: Response) => {
       const intent = event.data.object;
       const consultationId = intent.metadata.consultationId;
 
-      // Update transaction status if it exists
-      const transaction = await Transaction.findOneAndUpdate(
-        { transactionId: intent.id },
-        { status: 'captured' },
-        { new: true },
-      );
+      // Find the transaction first to check current status
+      const existingTransaction = await Transaction.findOne({
+        transactionId: intent.id,
+      });
 
-      if (transaction) {
+      // Only proceed if transaction exists and hasn't been captured yet
+      if (existingTransaction && existingTransaction.status !== 'captured') {
+        existingTransaction.status = 'captured';
+        await existingTransaction.save();
+
         await NotificationService.sendNotification({
-          user: transaction.user.toString(),
+          user: existingTransaction.user.toString(),
           title: 'Payment Successful',
           message: `Your payment of $${(intent.amount / 100).toFixed(2)} has been completed successfully.`,
           type: 'PAYMENT_SUCCESS',

@@ -142,6 +142,10 @@ const consultationSchema = new Schema<IConsultation>(
 
 consultationSchema.index({ consultant: 1, date: 1, startTime: 1, endTime: 1 });
 consultationSchema.index({ user: 1 });
+consultationSchema.index(
+  { status: 1 },
+  { partialFilterExpression: { status: 'pending' } },
+);
 
 export const Consultation = model<IConsultation>(
   'Consultation',

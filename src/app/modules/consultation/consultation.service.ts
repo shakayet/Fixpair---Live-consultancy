@@ -314,6 +314,48 @@ const updateBookingStatus = async (
       );
     }
 
+    // Re-verify availability if the consultant is accepting a scheduled booking
+    if (status === 'accepted' && booking.bookingType === 'scheduled') {
+      const slotDate = new Date(booking.date!);
+      slotDate.setHours(0, 0, 0, 0);
+
+      // 1. Check if slot is marked as UNAVAILABLE by consultant
+      const isUnavailable = await Availability.findOne({
+        consultant: booking.consultant,
+        slots: {
+          $elemMatch: {
+            date: slotDate,
+            startTime: booking.startTime,
+            endTime: booking.endTime,
+          },
+        },
+      }).session(session);
+
+      if (isUnavailable) {
+        throw new ApiError(
+          StatusCodes.BAD_REQUEST,
+          'This slot is now marked unavailable. Cannot accept booking.',
+        );
+      }
+
+      // 2. Check if slot is ALREADY BOOKED by another confirmed booking
+      const overlappingBooking = await Consultation.findOne({
+        consultant: booking.consultant,
+        date: slotDate,
+        startTime: booking.startTime,
+        endTime: booking.endTime,
+        status: { $in: ['accepted', 'confirmed', 'completed'] },
+        _id: { $ne: booking._id },
+      }).session(session);
+
+      if (overlappingBooking) {
+        throw new ApiError(
+          StatusCodes.CONFLICT,
+          'This slot is already occupied by another confirmed booking.',
+        );
+      }
+    }
+
     // Additional logic for callback or instant bookings
     // Map 'accepted' to 'confirmed' as per requirement
     const updateData: any = {

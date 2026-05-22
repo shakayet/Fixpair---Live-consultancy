@@ -14,7 +14,9 @@ import { ReviewService } from '../review/review.service';
 
 const getAllUsersToDB = async (query: Record<string, unknown>) => {
   const userQuery = new QueryBuilder(
-    User.find().select('-authentication -password -paymentMethods'),
+    User.find().select(
+      '-authentication -password -paymentMethods -fcmTokens -stripeCustomerId -paypalPayerId',
+    ),
     query,
   )
     .search(['name', 'email', 'contact'])
@@ -78,7 +80,9 @@ const getUserProfileFromDB = async (
   user: JwtPayload,
 ): Promise<Partial<IUser>> => {
   const { id } = user;
-  const isExistUser = await User.isExistUserById(id);
+  const isExistUser = await User.findById(id).select(
+    '-authentication -password -fcmTokens -stripeCustomerId -paypalPayerId',
+  );
   if (!isExistUser) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
   }
@@ -99,10 +103,23 @@ const updateProfileToDB = async (
   payload: Partial<IUser>,
 ): Promise<Partial<IUser | null>> => {
   const { id } = user;
-  const isExistUser = await User.isExistUserById(id);
+  const isExistUser = await User.findById(id);
   if (!isExistUser) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
   }
+
+  // Prevent users from manually updating sensitive fields via profile update
+  const protectedFields = [
+    'role',
+    'verified',
+    'stripeCustomerId',
+    'paypalPayerId',
+    'authentication',
+    'fcmTokens',
+  ];
+  protectedFields.forEach(field => {
+    delete (payload as any)[field];
+  });
 
   //unlink file here
   if (payload.image) {
@@ -111,7 +128,9 @@ const updateProfileToDB = async (
 
   const updateDoc = await User.findOneAndUpdate({ _id: id }, payload, {
     new: true,
-  });
+  }).select(
+    '-authentication -password -fcmTokens -stripeCustomerId -paypalPayerId',
+  );
 
   return updateDoc;
 };
@@ -175,7 +194,9 @@ const deleteUserFromDB = async (adminId: string, targetId: string) => {
 };
 
 const getSingleUserFromDB = async (id: string): Promise<Partial<IUser>> => {
-  const isExistUser = await User.isExistUserById(id);
+  const isExistUser = await User.findById(id).select(
+    '-authentication -password -fcmTokens -stripeCustomerId -paypalPayerId',
+  );
   if (!isExistUser) {
     throw new ApiError(StatusCodes.NOT_FOUND, "User doesn't exist!");
   }
@@ -199,15 +220,17 @@ const getConsultantsFromDB = async (query: Record<string, unknown>) => {
     delete queryData.name;
   }
 
-  // Add hardcoded filter for role: CONSULTANT
   const consultantQuery = new QueryBuilder(
-    User.find({ role: USER_ROLES.CONSULTANT, status: 'active' }).select(
-      '-authentication -password -paymentMethods',
+    User.find({
+      role: USER_ROLES.CONSULTANT,
+      status: 'active',
+    }).select(
+      '-authentication -password -fcmTokens -stripeCustomerId -paypalPayerId -paymentMethods',
     ),
     queryData,
   )
-    .search(['name', 'email', 'expertise'])
-    .filter() // This will handle ?consultancyType=doctor etc
+    .search(['name', 'email', 'tags', 'expertise'])
+    .filter()
     .sort()
     .paginate()
     .fields();
@@ -215,11 +238,13 @@ const getConsultantsFromDB = async (query: Record<string, unknown>) => {
   const result = await consultantQuery.modelQuery.lean();
   const meta = await consultantQuery.getPaginationInfo();
 
-  // Attach stats for all found consultants
+  // Attach stats for each consultant
   const resultWithStats = await Promise.all(
-    result.map(async (user: any) => {
-      const stats = await ReviewService.getConsultantStats(user._id.toString());
-      return { ...user, stats };
+    result.map(async (consultant: any) => {
+      const stats = await ReviewService.getConsultantStats(
+        consultant._id.toString(),
+      );
+      return { ...consultant, stats };
     }),
   );
 

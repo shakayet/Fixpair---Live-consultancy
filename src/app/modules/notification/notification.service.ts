@@ -116,9 +116,18 @@ const markAllAsRead = async (user: JwtPayload) => {
   return { message: 'All notifications marked as read' };
 };
 
+const getUnreadCount = async (user: JwtPayload) => {
+  const count = await Notification.countDocuments({
+    user: user.id,
+    read: false,
+  });
+  return { count };
+};
+
 export const NotificationService = {
   sendNotification,
   getMyNotifications,
   markAsRead,
   markAllAsRead,
+  getUnreadCount,
 };
