@@ -126,7 +126,7 @@ const startBilling = async (consultationId: string) => {
 const recoverBilling = async () => {
   console.log('--- RECOVERING BILLING SESSIONS ---');
   const ongoingConsultations = await Consultation.find({
-    status: 'completed', // Only consultations that should be active
+    status: { $in: ['accepted', 'confirmed'] }, // Consultations that are active or confirmed
     billingStatus: 'charging',
   });
 

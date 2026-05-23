@@ -12,6 +12,7 @@ import { User } from '../user/user.model';
 import ApiError from '../../../errors/ApiError';
 import { StatusCodes } from 'http-status-codes';
 import { JwtPayload } from 'jsonwebtoken';
+import { cacheHelper } from '../../utils/cache';
 
 /**
  * Invoice Service
@@ -450,6 +451,21 @@ const finalizeInvoice = async (consultationId: string) => {
     ...invoiceData,
     pdfUrl,
   });
+
+  // Update consultation status
+  await Consultation.findByIdAndUpdate(consultationId, {
+    status: 'completed',
+    billingStatus: 'completed',
+    paymentStatus: 'paid',
+  });
+
+  // Increment consultant's total consultations and clear cache
+  await User.findByIdAndUpdate(consultation.consultant, {
+    $inc: { totalConsultations: 1 },
+  });
+
+  cacheHelper.clearByPrefix('consultants:recommended');
+  cacheHelper.clearByPrefix('consultants:list');
 
   return invoice;
 };

@@ -13,7 +13,6 @@ import { User } from '../user/user.model';
 import { USER_ROLES } from '../../../enums/user';
 import config from '../../../config';
 import { NotificationService } from '../notification/notification.service';
-import { User } from '../user/user.model';
 import { cacheHelper } from '../../utils/cache';
 
 const setAvailability = async (user: JwtPayload, slots: ISlot[]) => {
@@ -302,6 +301,14 @@ const updateBookingStatus = async (
     const booking = await Consultation.findById(bookingId).session(session);
     if (!booking) {
       throw new ApiError(StatusCodes.NOT_FOUND, 'Booking not found');
+    }
+
+    // Prevent updating if booking is already cancelled or completed
+    if (['cancelled', 'completed', 'expired'].includes(booking.status)) {
+      throw new ApiError(
+        StatusCodes.BAD_REQUEST,
+        `Cannot update status. Booking is already ${booking.status}`,
+      );
     }
 
     // Authorization: Only consultant or admin can update status
