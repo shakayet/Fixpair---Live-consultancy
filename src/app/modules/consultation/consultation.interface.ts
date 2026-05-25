@@ -3,7 +3,7 @@ import { Types } from 'mongoose';
 export type ISlot = {
   _id?: Types.ObjectId;
   date: Date;
-  startTime: string; // HH:mm format
+  startTime: string; //format HH:mm 
   endTime: string; // HH:mm format
 };
 
