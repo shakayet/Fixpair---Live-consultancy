@@ -16,6 +16,7 @@ import { User } from '../user/user.model';
 import { IReport } from './report.interface';
 import { Report } from './report.model';
 import { VideoSession } from '../videoSession/videoSession.model';
+import { Transcript } from '../transcription/transcription.model';
 
 const generateConsultationPDF = async (reportData: any): Promise<string> => {
   return new Promise((resolve, reject) => {
@@ -250,37 +251,50 @@ const createReport = async (user: JwtPayload, payload: any, files: any) => {
     );
   }
 
-  // Use conversation from payload if provided, otherwise fallback to mock
+  // Use conversation from payload if provided, otherwise fetch from Transcripts, fallback to mock
   let finalConversation = conversation;
 
   if (!finalConversation) {
-    // Mock conversation capture from external API
-    const mockConversation = [
-      {
-        sender: 'user',
-        text: 'Hello, I need some advice on my case.',
-        timestamp: new Date(Date.now() - 1000 * 60 * 30),
-      },
-      {
-        sender: 'consultant',
-        text: 'Sure, I can help with that. Please tell me more.',
-        timestamp: new Date(Date.now() - 1000 * 60 * 25),
-      },
-      {
-        sender: 'user',
-        text: 'It is about a contract dispute.',
-        timestamp: new Date(Date.now() - 1000 * 60 * 20),
-      },
-      {
-        sender: 'consultant',
-        text: 'I see. I will review the documents and get back to you.',
-        timestamp: new Date(Date.now() - 1000 * 60 * 15),
-      },
-    ];
+    // Attempt to fetch real transcripts from the video session
+    const transcripts = await Transcript.find({
+      consultation: consultationId,
+    })
+      .sort({ timestamp: 1 })
+      .lean();
 
-    finalConversation = mockConversation
-      .map(msg => `${msg.sender}: ${msg.text}`)
-      .join(' ');
+    if (transcripts && transcripts.length > 0) {
+      finalConversation = transcripts
+        .map(t => `${t.speakerRole}: ${t.text}`)
+        .join('\n');
+    } else {
+      // Mock conversation capture from external API
+      const mockConversation = [
+        {
+          sender: 'user',
+          text: 'Hello, I need some advice on my case.',
+          timestamp: new Date(Date.now() - 1000 * 60 * 30),
+        },
+        {
+          sender: 'consultant',
+          text: 'Sure, I can help with that. Please tell me more.',
+          timestamp: new Date(Date.now() - 1000 * 60 * 25),
+        },
+        {
+          sender: 'user',
+          text: 'It is about a contract dispute.',
+          timestamp: new Date(Date.now() - 1000 * 60 * 20),
+        },
+        {
+          sender: 'consultant',
+          text: 'I see. I will review the documents and get back to you.',
+          timestamp: new Date(Date.now() - 1000 * 60 * 15),
+        },
+      ];
+
+      finalConversation = mockConversation
+        .map(msg => `${msg.sender}: ${msg.text}`)
+        .join('\n');
+    }
   }
 
   // Fetch duration from VideoSession

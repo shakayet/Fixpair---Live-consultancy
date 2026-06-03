@@ -63,7 +63,10 @@ const sendPushNotification = async (
       title: data.title || 'Notification',
       body: data.body || '',
     },
-    data,
+    data: {
+      ...data,
+      click_action: 'FLUTTER_NOTIFICATION_CLICK',
+    },
     android: {
       priority: 'high',
       notification: {
