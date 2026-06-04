@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Types } from 'mongoose';
 
 export type INotification = {
@@ -11,6 +12,7 @@ export type INotification = {
     | 'SYSTEM';
   relatedBooking?: Types.ObjectId;
   read: boolean;
+  idempotencyKey?: string;
   metadata?: Record<string, any>;
   createdAt?: Date;
   updatedAt?: Date;

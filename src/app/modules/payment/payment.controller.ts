@@ -1,3 +1,4 @@
+/* eslint-disable no-undef */
 /* eslint-disable no-unused-vars */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -13,6 +14,7 @@ import { BillingService } from './billing.service';
 import { NotificationService } from '../notification/notification.service';
 import ApiError from '../../../errors/ApiError';
 import config from '../../../config';
+import { logger } from '../../../shared/logger';
 
 const createStripeCustomer = catchAsync(async (req: Request, res: Response) => {
   const user = req.user as any;
@@ -147,28 +149,53 @@ const handleStripeWebhook = catchAsync(async (req: Request, res: Response) => {
       const consultationId = intent.metadata.consultationId;
 
       // Find the transaction first to check current status
-      const existingTransaction = await Transaction.findOne({
+      let existingTransaction = await Transaction.findOne({
         transactionId: intent.id,
       });
 
-      // Only proceed if transaction exists and hasn't been captured yet
-      if (existingTransaction && existingTransaction.status !== 'captured') {
-        existingTransaction.status = 'captured';
-        await existingTransaction.save();
+      // If it doesn't exist (e.g. manual payment from Stripe Dashboard), create it
+      if (!existingTransaction) {
+        const userId = intent.metadata.userId;
+        if (!userId) {
+          logger.warn(
+            `Webhook received for intent ${intent.id} without userId in metadata`,
+          );
+          break;
+        }
 
-        await NotificationService.sendNotification({
-          user: existingTransaction.user.toString(),
-          title: 'Payment Successful',
-          message: `Your payment of $${(intent.amount / 100).toFixed(2)} has been completed successfully.`,
-          type: 'PAYMENT_SUCCESS',
-          relatedBooking: consultationId,
-          metadata: {
-            amount: intent.amount / 100,
-            status: 'captured',
-            transactionId: intent.id,
-          },
+        existingTransaction = await Transaction.create({
+          consultation: consultationId,
+          user: userId,
+          transactionId: intent.id,
+          amount: intent.amount / 100,
+          provider: 'stripe',
+          status: 'pending',
+          type: 'charge',
         });
       }
+
+      // If transaction is not already captured, mark it as captured
+      if (existingTransaction.status !== 'captured') {
+        existingTransaction.status = 'captured';
+        await existingTransaction.save();
+      }
+
+      // Send notification using idempotencyKey to prevent duplicates.
+      // We send this here as a fallback/confirmation. If billing.service already sent it, 
+      // the NotificationService will block this duplicate.
+      await NotificationService.sendNotification({
+        user: existingTransaction.user.toString(),
+        title: 'Payment Successful',
+        message: `Your payment of $${(intent.amount / 100).toFixed(2)} has been completed successfully.`,
+        type: 'PAYMENT_SUCCESS',
+        relatedBooking: consultationId,
+        idempotencyKey: `payment_success_${intent.id}`,
+        metadata: {
+          amount: intent.amount / 100,
+          status: 'captured',
+          transactionId: intent.id,
+        },
+      });
       break;
     }
 

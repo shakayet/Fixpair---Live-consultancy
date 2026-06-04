@@ -406,6 +406,7 @@ const updateBookingStatus = async (
         message,
         type: 'CONSULTATION_STATUS',
         relatedBooking: result._id.toString(),
+        idempotencyKey: `consultation_status_${result._id}_${status}`,
         metadata: {
           consultantName,
           status: status === 'accepted' ? 'accepted' : 'rejected',

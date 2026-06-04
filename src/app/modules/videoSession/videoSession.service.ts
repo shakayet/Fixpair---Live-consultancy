@@ -131,24 +131,33 @@ const joinSession = async (user: JwtPayload, sessionId: string) => {
 
   // Update status to ongoing if it's the first time joining
   if (session.status === 'pending') {
-    // 1. Trigger billing first (this includes the 5-minute pre-auth check)
-    // If this fails, it will throw an error and prevent session from starting
-    await BillingService.startBilling(session.consultation.toString());
+    // Atomic update to prevent race conditions when both users join simultaneously
+    const updatedSession = await VideoSession.findOneAndUpdate(
+      { _id: sessionId, status: 'pending' },
+      { status: 'ongoing', startedAt: new Date() },
+      { new: true }
+    );
 
-    // 2. Start Transcription
-    try {
-      await TranscriptionService.startTranscription(
-        session.consultation.toString(),
-      );
-    } catch (error) {
-      console.error('Failed to start transcription:', error);
-      // We don't want to block the session if STT fails
+    if (updatedSession) {
+      // 1. Trigger billing first (this includes the 5-minute pre-auth check)
+      try {
+        await BillingService.startBilling(session.consultation.toString());
+      } catch (error) {
+        // If billing fails, revert status so it can be retried
+        await VideoSession.updateOne({ _id: sessionId }, { status: 'pending' });
+        throw error;
+      }
+
+      // 2. Start Transcription
+      try {
+        await TranscriptionService.startTranscription(
+          session.consultation.toString(),
+        );
+      } catch (error) {
+        console.error('Failed to start transcription:', error);
+        // We don't want to block the session if STT fails
+      }
     }
-
-    // 3. Only if billing starts successfully, mark session as ongoing
-    session.status = 'ongoing';
-    session.startedAt = new Date();
-    await session.save();
   }
 
   // Add the assigned UID to the response for the frontend

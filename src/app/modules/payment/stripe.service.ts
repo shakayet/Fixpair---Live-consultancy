@@ -33,6 +33,7 @@ const createCharge = async (
   paymentMethodId: string,
   amount: number,
   consultationId: string,
+  userId: string,
 ) => {
   return await stripe.paymentIntents.create({
     amount: Math.round(amount * 100), // convert to cents
@@ -41,7 +42,7 @@ const createCharge = async (
     payment_method: paymentMethodId,
     off_session: true,
     confirm: true,
-    metadata: { consultationId },
+    metadata: { consultationId, userId },
   });
 };
 
@@ -53,7 +54,8 @@ const authorizePayment = async (
   customerId: string,
   paymentMethodId: string,
   amount: number,
-  consultationId: string
+  consultationId: string,
+  userId: string,
 ) => {
   return await stripe.paymentIntents.create({
     amount: Math.round(amount * 100),
@@ -63,7 +65,7 @@ const authorizePayment = async (
     off_session: true,
     confirm: true,
     capture_method: 'manual', // This makes it an authorization
-    metadata: { consultationId },
+    metadata: { consultationId, userId },
   });
 };
 

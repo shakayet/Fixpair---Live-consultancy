@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { StatusCodes } from 'http-status-codes';
 import { JwtPayload } from 'jsonwebtoken';
 import ApiError from '../../../errors/ApiError';
@@ -15,11 +16,29 @@ const sendNotification = async (payload: {
   user: string;
   title: string;
   message: string;
-  type: 'CONSULTATION_STATUS' | 'PAYMENT_SUCCESS' | 'CONSULTATION_REMINDER' | 'SYSTEM';
+  type:
+    | 'CONSULTATION_STATUS'
+    | 'PAYMENT_SUCCESS'
+    | 'CONSULTATION_REMINDER'
+    | 'SYSTEM';
   relatedBooking?: string;
+  idempotencyKey?: string;
   metadata?: Record<string, any>;
 }) => {
   try {
+    // 0. Idempotency Check
+    if (payload.idempotencyKey) {
+      const existingNotification = await Notification.findOne({
+        idempotencyKey: payload.idempotencyKey,
+      });
+      if (existingNotification) {
+        logger.info(
+          `Duplicate notification blocked: ${payload.idempotencyKey}`,
+        );
+        return existingNotification;
+      }
+    }
+
     // 1. Save to Database
     const notification = await Notification.create({
       ...payload,
@@ -67,20 +86,34 @@ const sendNotification = async (payload: {
           await User.findByIdAndUpdate(payload.user, {
             $pull: { fcmTokens: { $in: invalidTokens } },
           });
-          logger.info(`Removed ${invalidTokens.length} invalid FCM tokens for user ${payload.user}`);
+          logger.info(
+            `Removed ${invalidTokens.length} invalid FCM tokens for user ${payload.user}`,
+          );
         }
       }
     }
 
     return notification;
-  } catch (error) {
+  } catch (error: any) {
+    // Handle race condition where two notifications with same idempotencyKey are created simultaneously
+    if (error.code === 11000 && payload.idempotencyKey) {
+      logger.info(
+        `Duplicate notification blocked via unique index: ${payload.idempotencyKey}`,
+      );
+      return await Notification.findOne({
+        idempotencyKey: payload.idempotencyKey,
+      });
+    }
     logger.error('Error in sendNotification:', error);
     // Do not throw error to avoid crashing the main flow
     return null;
   }
 };
 
-const getMyNotifications = async (user: JwtPayload, query: Record<string, any>) => {
+const getMyNotifications = async (
+  user: JwtPayload,
+  query: Record<string, any>,
+) => {
   const notificationQuery = new QueryBuilder(
     Notification.find({ user: user.id }),
     query,

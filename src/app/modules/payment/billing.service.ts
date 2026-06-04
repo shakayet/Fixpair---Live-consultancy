@@ -36,11 +36,21 @@ const activeSessions = new Map<
   }
 >();
 
+const billingLocks = new Set<string>();
+
 const startBilling = async (consultationId: string) => {
-  const consultation =
-    await Consultation.findById(consultationId).populate('user consultant');
-  if (!consultation)
-    throw new ApiError(StatusCodes.NOT_FOUND, 'Consultation not found');
+  if (activeSessions.has(consultationId) || billingLocks.has(consultationId)) {
+    console.log(`Billing is already active or starting for ${consultationId}`);
+    return;
+  }
+  
+  billingLocks.add(consultationId);
+
+  try {
+    const consultation =
+      await Consultation.findById(consultationId).populate('user consultant');
+    if (!consultation)
+      throw new ApiError(StatusCodes.NOT_FOUND, 'Consultation not found');
 
   const user = await User.findById(consultation.user);
   const consultant = await User.findById(consultation.consultant);
@@ -83,6 +93,7 @@ const startBilling = async (consultationId: string) => {
         defaultMethod.methodId,
         preAuthAmount,
         consultationId,
+        user._id.toString(),
       );
     }
   } catch (error: any) {
@@ -118,6 +129,9 @@ const startBilling = async (consultationId: string) => {
 
   // Initial charge for platform fee + 1st minute (captured from pre-auth)
   await attemptMinuteCharge(consultationId, true);
+  } finally {
+    billingLocks.delete(consultationId);
+  }
 };
 
 /**
@@ -220,6 +234,7 @@ const attemptMinuteCharge = async (
           sessionData.paymentMethodId,
           chargeAmount,
           consultationId,
+          (consultation.user as any)._id.toString(),
         );
 
         transaction = await Transaction.create({
@@ -229,9 +244,13 @@ const attemptMinuteCharge = async (
           provider: 'stripe',
           transactionId: paymentIntent.id,
           amount: chargeAmount,
-          status: 'captured',
+          status: 'captured', // Stripe confirm: true makes it immediate
           type: 'charge',
         });
+
+        // We DO NOT send notification here anymore.
+        // The Stripe Webhook will handle it via 'payment_intent.succeeded'
+        // using the same transaction record for idempotency.
       }
     }
 
@@ -251,14 +270,17 @@ const attemptMinuteCharge = async (
       },
     );
 
-    // Initial charge notification
-    if (isInitial && transaction) {
+    // Send Payment Success Notification
+    // We send this here for immediate feedback (especially in local dev)
+    // The NotificationService idempotencyKey will prevent the Webhook from sending it again
+    if (transaction) {
       await NotificationService.sendNotification({
         user: consultation.user._id.toString(),
         title: 'Payment Successful',
         message: `Your payment of $${chargeAmount.toFixed(2)} has been completed successfully.`,
         type: 'PAYMENT_SUCCESS',
         relatedBooking: consultationId,
+        idempotencyKey: `payment_success_${transaction.transactionId}`,
         metadata: {
           amount: chargeAmount,
           status: 'captured',

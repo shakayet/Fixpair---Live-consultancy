@@ -34,6 +34,11 @@ const notificationSchema = new Schema<INotification>(
       type: Boolean,
       default: false,
     },
+    idempotencyKey: {
+      type: String,
+      unique: true,
+      sparse: true,
+    },
     metadata: {
       type: Schema.Types.Mixed,
     },
