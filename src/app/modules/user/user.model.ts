@@ -85,12 +85,12 @@ const userSchema = new Schema<IUser, UserModal>(
       default: [],
     },
     expertise: {
-      type: String,
-      default: null,
+      type: [String],
+      default: [],
     },
     tags: {
-      type: String,
-      default: null,
+      type: [String],
+      default: [],
     },
     visitFee: {
       type: Number,

@@ -22,8 +22,8 @@ export type IUser = {
   consultancyType?: 'lawyer' | 'advisor' | 'doctor';
   experience?: string;
   languages?: string[];
-  expertise?: string;
-  tags?: string;
+  expertise?: string[];
+  tags?: string[];
   visitFee?: number;
   perMinuteRate?: number;
   activeStatus?: boolean;

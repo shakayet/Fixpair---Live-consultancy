@@ -1,9 +1,12 @@
+/* eslint-disable no-console */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-non-null-asserted-optional-chain */
 import bcrypt from 'bcrypt';
 import admin from 'firebase-admin';
 import { StatusCodes } from 'http-status-codes';
 import { JwtPayload, Secret } from 'jsonwebtoken';
 import config from '../../../config';
+import { USER_ROLES } from '../../../enums/user';
 import ApiError from '../../../errors/ApiError';
 import { emailHelper } from '../../../helpers/emailHelper';
 import { jwtHelper } from '../../../helpers/jwtHelper';
@@ -150,9 +153,14 @@ const socialLoginFromDB = async (payload: {
 
     return { accessToken, refreshToken };
   } catch (error: any) {
+    console.error('Firebase Token Verification Error Details:', {
+      message: error.message,
+      code: error.code,
+      stack: error.stack,
+    });
     throw new ApiError(
       StatusCodes.UNAUTHORIZED,
-      'Invalid or expired Firebase ID token',
+      `Firebase verification failed: ${error.message}`,
     );
   }
 };
