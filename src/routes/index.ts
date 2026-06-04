@@ -13,6 +13,7 @@ import { AdminRoutes } from '../app/modules/admin/admin.route';
 import { RecommendationRoutes } from '../app/modules/recommendation/recommendation.route';
 import { TranscriptionRoutes } from '../app/modules/transcription/transcription.route';
 import { NotificationRoutes } from '../app/modules/notification/notification.route';
+import { CustomerSupportRoutes } from '../app/modules/customerSupport/customerSupport.route';
 
 const router = express.Router();
 
@@ -72,6 +73,10 @@ const apiRoutes = [
   {
     path: '/notification',
     route: NotificationRoutes,
+  },
+  {
+    path: '/customer-support',
+    route: CustomerSupportRoutes,
   },
 ];
 
