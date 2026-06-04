@@ -1,7 +1,6 @@
 import express from 'express';
 import { AuthRoutes } from '../app/modules/auth/auth.route';
 import { UserRoutes } from '../app/modules/user/user.route';
-import { OAuthRoutes } from '../app/modules/passport/oauth.route';
 import { ReviewRoutes } from '../app/modules/review/review.route';
 import { ConsultationRoutes } from '../app/modules/consultation/consultation.route';
 import { FaqRoutes } from '../app/modules/faq/faq.route';
@@ -25,10 +24,6 @@ const apiRoutes = [
   {
     path: '/auth',
     route: AuthRoutes,
-  },
-  {
-    path: '/oauth',
-    route: OAuthRoutes,
   },
   {
     path: '/review',

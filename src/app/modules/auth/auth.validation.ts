@@ -53,6 +53,15 @@ const createRefreshTokenZodSchema = z.object({
   }),
 });
 
+const socialLoginZodSchema = z.object({
+  body: z.object({
+    idToken: z.string({ required_error: 'ID Token is required' }),
+    provider: z.enum(['google', 'apple'], {
+      required_error: 'Provider is required',
+    }),
+  }),
+});
+
 export const AuthValidation = {
   createVerifyEmailZodSchema,
   createForgetPasswordZodSchema,
@@ -61,4 +70,5 @@ export const AuthValidation = {
   createChangePasswordZodSchema,
   resendOtpZodSchema,
   createRefreshTokenZodSchema,
+  socialLoginZodSchema,
 };

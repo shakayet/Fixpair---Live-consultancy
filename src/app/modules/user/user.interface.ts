@@ -16,6 +16,7 @@ export type IUser = {
   avatar?: string;
   status: 'active' | 'blocked' | 'deleted';
   verified: boolean;
+  firebaseUid?: string;
   provider?: 'local' | 'google' | 'facebook' | 'github' | 'apple';
   providerId?: string;
   consultancyType?: 'lawyer' | 'advisor' | 'doctor';

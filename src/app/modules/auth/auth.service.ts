@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-non-null-asserted-optional-chain */
 import bcrypt from 'bcrypt';
+import admin from 'firebase-admin';
 import { StatusCodes } from 'http-status-codes';
 import { JwtPayload, Secret } from 'jsonwebtoken';
 import config from '../../../config';
@@ -73,6 +74,87 @@ const loginUserFromDB = async (payload: ILoginData) => {
   );
 
   return { accessToken, refreshToken };
+};
+
+//social login
+const socialLoginFromDB = async (payload: {
+  idToken: string;
+  provider: 'google' | 'apple';
+}) => {
+  const { idToken, provider } = payload;
+
+  try {
+    // Verify the Firebase ID Token
+    const decodedToken = await admin.auth().verifyIdToken(idToken);
+
+    // Extracted user details from Firebase token
+    const firebaseUid = decodedToken.uid;
+    const email = decodedToken.email;
+    const name =
+      decodedToken.name || decodedToken.email?.split('@')[0] || 'User';
+    const avatar = decodedToken.picture || '';
+
+    // Database Sync Flow:
+    // 1. Check if user already exists in database by email or firebaseUid
+    let user = await User.findOne({
+      $or: [{ email }, { firebaseUid }],
+    });
+
+    if (!user) {
+      // 2. If user does not exist, create a new record (Auto-Registration)
+      user = await User.create({
+        name,
+        email,
+        firebaseUid,
+        avatar,
+        verified: true, // Social accounts are pre-verified
+        provider: provider,
+        role: USER_ROLES.USER, // Default role for social login
+      });
+    } else {
+      // Update firebaseUid or provider details if missing or different
+      let isUpdated = false;
+      if (!user.firebaseUid) {
+        user.firebaseUid = firebaseUid;
+        isUpdated = true;
+      }
+      if (user.provider !== provider) {
+        user.provider = provider;
+        isUpdated = true;
+      }
+      if (isUpdated) {
+        await user.save();
+      }
+    }
+
+    // 3. Generate standard backend JWT tokens
+    const accessToken = jwtHelper.createToken(
+      {
+        id: user._id.toString(),
+        role: user.role,
+        email: user.email,
+      },
+      config.jwt.jwt_secret as Secret,
+      config.jwt.jwt_expire_in as string,
+    );
+
+    const refreshToken = jwtHelper.createToken(
+      {
+        id: user._id.toString(),
+        role: user.role,
+        email: user.email,
+      },
+      config.jwt.jwt_refresh_secret as Secret,
+      config.jwt.jwt_refresh_expire_in as string,
+    );
+
+    return { accessToken, refreshToken };
+  } catch (error: any) {
+    throw new ApiError(
+      StatusCodes.UNAUTHORIZED,
+      'Invalid or expired Firebase ID token',
+    );
+  }
 };
 
 //forget password
@@ -243,7 +325,7 @@ const changePasswordToDB = async (
   //current password match
   if (
     currentPassword &&
-!(await User.isMatchPassword(currentPassword, isExistUser.password!))
+    !(await User.isMatchPassword(currentPassword, isExistUser.password!))
   ) {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'Password is incorrect');
   }
@@ -372,6 +454,7 @@ const refreshToken = async (token: string) => {
 export const AuthService = {
   verifyEmailToDB,
   loginUserFromDB,
+  socialLoginFromDB,
   forgetPasswordToDB,
   resetPasswordToDB,
   changePasswordToDB,

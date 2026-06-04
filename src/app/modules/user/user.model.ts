@@ -56,6 +56,12 @@ const userSchema = new Schema<IUser, UserModal>(
       type: Boolean,
       default: false,
     },
+    firebaseUid: {
+      type: String,
+      default: null,
+      unique: true,
+      sparse: true,
+    },
     provider: {
       type: String,
       enum: ['local', 'google', 'facebook', 'github', 'apple'],

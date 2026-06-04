@@ -44,6 +44,29 @@ const loginUser = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const socialLogin = catchAsync(async (req: Request, res: Response) => {
+  const result = await AuthService.socialLoginFromDB(req.body);
+  const { refreshToken, accessToken } = result;
+
+  // set refresh token into cookie
+  const cookieOptions = {
+    secure: config.node_env === 'production',
+    httpOnly: true,
+  };
+
+  res.cookie('refreshToken', refreshToken, cookieOptions);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'Login successful',
+    data: {
+      accessToken,
+      refreshToken,
+    },
+  });
+});
+
 const forgetPassword = catchAsync(async (req: Request, res: Response) => {
   const email = req.body.email;
   const result = await AuthService.forgetPasswordToDB(email);
@@ -127,6 +150,7 @@ const refreshToken = catchAsync(async (req: Request, res: Response) => {
 export const AuthController = {
   verifyEmail,
   loginUser,
+  socialLogin,
   forgetPassword,
   resendOtp,
   resetPassword,

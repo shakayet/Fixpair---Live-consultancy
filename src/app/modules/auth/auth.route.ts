@@ -13,6 +13,12 @@ router.post(
 );
 
 router.post(
+  '/social-login',
+  validateRequest(AuthValidation.socialLoginZodSchema),
+  AuthController.socialLogin,
+);
+
+router.post(
   '/forget-password',
   validateRequest(AuthValidation.createForgetPasswordZodSchema),
   AuthController.forgetPassword,

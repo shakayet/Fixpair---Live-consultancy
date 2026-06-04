@@ -2,10 +2,6 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import express, { Request, Response } from 'express';
 import { StatusCodes } from 'http-status-codes';
-import session from 'express-session';
-import passport from 'passport';
-import { initializePassport } from './config/passport';
-import config from './config';
 import globalErrorHandler from './app/middlewares/globalErrorHandler';
 import router from './routes';
 import { Morgan } from './shared/morgen';
@@ -20,25 +16,6 @@ app.use(cors());
 app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
-//session configuration for OAuth
-app.use(
-  session({
-    secret: config.oauth.sessionSecret,
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      secure: config.node_env === 'production',
-      httpOnly: true,
-      maxAge: 24 * 60 * 60 * 1000, // 24 hours
-    },
-  }),
-);
-
-//initialize Passport.js
-initializePassport();
-app.use(passport.initialize());
-app.use(passport.session());
 
 //file retrieve
 app.use(express.static('uploads'));
