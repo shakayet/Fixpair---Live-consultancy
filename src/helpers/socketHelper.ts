@@ -1,3 +1,6 @@
+/* eslint-disable no-undef */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 import colors from 'colors';
 import { Server } from 'socket.io';
 import { logger } from '../shared/logger';
@@ -33,6 +36,13 @@ const socket = (io: Server) => {
 
       // @ts-ignore
       socket.userId = decoded.id;
+      // @ts-ignore
+      socket.userRole = decoded.role;
+
+      if (decoded.role === 'ADMIN' || decoded.role === 'SUPER_ADMIN') {
+        socket.join('admin_room');
+      }
+
       next();
     } catch (error) {
       return next(new Error('Authentication error: Invalid token'));
@@ -51,30 +61,33 @@ const socket = (io: Server) => {
     }
 
     // --- Live Transcription Relay (Option B) ---
-    socket.on('send-speech', async (data: { sessionId: string; text: string }) => {
-      try {
-        const { sessionId, text } = data;
-        const session = await VideoSession.findById(sessionId);
-        if (!session) return;
+    socket.on(
+      'send-speech',
+      async (data: { sessionId: string; text: string }) => {
+        try {
+          const { sessionId, text } = data;
+          const session = await VideoSession.findById(sessionId);
+          if (!session) return;
 
-        // Determine recipient (the opposite person in the session)
-        const recipientId =
-          userId === session.user.toString()
-            ? session.consultant.toString()
-            : session.user.toString();
+          // Determine recipient (the opposite person in the session)
+          const recipientId =
+            userId === session.user.toString()
+              ? session.consultant.toString()
+              : session.user.toString();
 
-        const sender = await User.findById(userId);
-        
-        // Relay to the other person
-        emitToUser(recipientId, 'receive-speech', {
-          speaker: sender?.name || 'User',
-          text,
-          sessionId,
-        });
-      } catch (error) {
-        logger.error('Transcription relay error:', error);
-      }
-    });
+          const sender = await User.findById(userId);
+
+          // Relay to the other person
+          emitToUser(recipientId, 'receive-speech', {
+            speaker: sender?.name || 'User',
+            text,
+            sessionId,
+          });
+        } catch (error) {
+          logger.error('Transcription relay error:', error);
+        }
+      },
+    );
 
     //disconnect
     socket.on('disconnect', () => {
@@ -95,4 +108,12 @@ const emitToUser = (userId: string, event: string, data: any) => {
   }
 };
 
-export const socketHelper = { socket, emitToUser };
+const broadcastToAdmins = (event: string, data: any) => {
+  //@ts-ignore
+  const io = global.io as Server;
+  if (io) {
+    io.to('admin_room').emit(event, data);
+  }
+};
+
+export const socketHelper = { socket, emitToUser, broadcastToAdmins };

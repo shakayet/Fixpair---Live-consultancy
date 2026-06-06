@@ -270,6 +270,14 @@ const attemptMinuteCharge = async (
       },
     );
 
+    // Broadcast to Admin for live monitoring
+    socketHelper.broadcastToAdmins('live-billing-update', {
+      consultationId,
+      consumedAmount: consultation.consumedAmount,
+      user: (consultation.user as any).name,
+      consultant: consultation.consultant,
+    });
+
     // Send Payment Success Notification
     // We send this here for immediate feedback (especially in local dev)
     // The NotificationService idempotencyKey will prevent the Webhook from sending it again

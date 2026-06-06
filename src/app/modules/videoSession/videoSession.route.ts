@@ -7,17 +7,23 @@ import { VideoSessionValidation } from './videoSession.validation';
 
 const router = express.Router();
 
-router
-  .route('/')
-  .post(
-    auth(USER_ROLES.USER, USER_ROLES.CONSULTANT),
-    validateRequest(VideoSessionValidation.createSessionZodSchema),
-    VideoSessionController.createSession,
-  )
-  .get(
-    auth(USER_ROLES.USER, USER_ROLES.CONSULTANT, USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN),
-    VideoSessionController.getMySessions,
-  );
+router.post(
+  '/create',
+  auth(USER_ROLES.USER, USER_ROLES.CONSULTANT),
+  validateRequest(VideoSessionValidation.createSessionZodSchema),
+  VideoSessionController.createSession,
+);
+
+router.get(
+  '/',
+  auth(
+    USER_ROLES.USER,
+    USER_ROLES.CONSULTANT,
+    USER_ROLES.ADMIN,
+    USER_ROLES.SUPER_ADMIN,
+  ),
+  VideoSessionController.getMySessions,
+);
 
 router.post(
   '/join',

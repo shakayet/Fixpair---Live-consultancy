@@ -74,6 +74,7 @@ const createSession = async (user: JwtPayload, consultationId: string) => {
     sessionId: result._id.toString(),
     callerName: user.name || 'A user',
     callerAvatar: user.image || user.avatar || '',
+    appId: config.agora.appId,
     token: result.token,
     channelName: result.channelName,
   };
@@ -135,7 +136,7 @@ const joinSession = async (user: JwtPayload, sessionId: string) => {
     const updatedSession = await VideoSession.findOneAndUpdate(
       { _id: sessionId, status: 'pending' },
       { status: 'ongoing', startedAt: new Date() },
-      { new: true }
+      { new: true },
     );
 
     if (updatedSession) {
@@ -163,7 +164,11 @@ const joinSession = async (user: JwtPayload, sessionId: string) => {
   // Add the assigned UID to the response for the frontend
   const uid = user.role === 'USER' ? 1001 : 2001;
 
-  return { ...session.toObject(), uid };
+  return {
+    ...session.toObject(),
+    uid,
+    appId: config.agora.appId,
+  };
 };
 
 const endSession = async (user: JwtPayload, sessionId: string) => {
