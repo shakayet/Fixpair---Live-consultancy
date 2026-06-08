@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { StatusCodes } from 'http-status-codes';
+import { JwtPayload } from 'jsonwebtoken';
 import ApiError from '../../../errors/ApiError';
 import { Consultation } from '../consultation/consultation.model';
 import { VideoSession } from '../videoSession/videoSession.model';
@@ -22,7 +23,6 @@ const startTranscription = async (consultationId: string) => {
   // 1. Acquire resource
   const resourceId = await AgoraSttHelper.acquireResource(
     session.channelName,
-    '9001',
   );
 
   // 2. Start transcription
@@ -64,40 +64,59 @@ const stopTranscription = async (consultationId: string) => {
   });
 };
 
-const handleTranscriptionCallback = async (payload: any) => {
-  // Agora STT callback structure processing
-  // This is where we receive the live text from Agora's message push
-  const { channelName, text, uid, isFinal, timestamp } = payload;
+/**
+ * The Agora STT bot (UID 9001) publishes recognized text as RTC data-stream
+ * messages inside the channel — only clients connected to that channel can
+ * receive them, Agora does not push results to the backend over HTTP. A
+ * participant's client relays each chunk it receives here so the backend can
+ * persist finalized transcripts and re-broadcast them (e.g. to a web dashboard
+ * that isn't joined to the RTC channel) over Socket.IO.
+ *
+ * channelName/consultation are derived from the session — never trusted from
+ * the client — so a participant cannot write transcripts into a consultation
+ * they aren't part of.
+ */
+const ingestTranscriptChunk = async (
+  user: JwtPayload,
+  consultationId: string,
+  chunk: { uid: number; text: string; isFinal: boolean; timestamp: number | string },
+) => {
+  const session = await VideoSession.findOne({ consultation: consultationId });
+  if (!session) {
+    throw new ApiError(StatusCodes.NOT_FOUND, 'Video session not found');
+  }
 
-  const session = await VideoSession.findOne({ channelName });
-  if (!session) return;
+  if (
+    session.user.toString() !== user.id &&
+    session.consultant.toString() !== user.id
+  ) {
+    throw new ApiError(
+      StatusCodes.FORBIDDEN,
+      'You are not part of this session',
+    );
+  }
+
+  const { uid, text, isFinal, timestamp } = chunk;
+
+  // Only the known speaker UIDs (client=1001, consultant=2001) are valid —
+  // the STT bot (9001) never appears as a "speaker" in recognize results.
+  if (uid !== 1001 && uid !== 2001) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Unrecognized speaker uid');
+  }
 
   const speakerRole = uid === 1001 ? 'user' : 'consultant';
+  const chunkTimestamp = new Date(timestamp);
 
-  // 1. Save to DB
-  const transcriptData = {
-    consultation: session.consultation,
-    channelName,
-    speakerUid: uid,
-    speakerRole,
-    text,
-    isFinal,
-    timestamp: new Date(timestamp),
-  };
-
-  await Transcript.create(transcriptData);
-
-  // 2. Broadcast via Socket
   const socketPayload = {
     consultationId: session.consultation.toString(),
     speakerUid: uid,
     speakerRole,
     text,
     isFinal,
-    timestamp: new Date(timestamp),
+    timestamp: chunkTimestamp,
   };
 
-  // Broadcast to both user and consultant
+  // 1. Live captions: relay every chunk (interim + final) to both participants
   socketHelper.emitToUser(
     session.user.toString(),
     'transcript:new',
@@ -108,6 +127,30 @@ const handleTranscriptionCallback = async (payload: any) => {
     'transcript:new',
     socketPayload,
   );
+
+  // 2. History: persist only finalized chunks. Both participants receive and
+  // relay the same data-stream message, so de-dupe on the natural key before
+  // writing to avoid double entries in the saved transcript.
+  if (isFinal) {
+    const exists = await Transcript.findOne({
+      consultation: session.consultation,
+      speakerUid: uid,
+      text,
+      timestamp: chunkTimestamp,
+    });
+
+    if (!exists) {
+      await Transcript.create({
+        consultation: session.consultation,
+        channelName: session.channelName,
+        speakerUid: uid,
+        speakerRole,
+        text,
+        isFinal,
+        timestamp: chunkTimestamp,
+      });
+    }
+  }
 };
 
 const getTranscriptHistory = async (consultationId: string) => {
@@ -119,6 +162,6 @@ const getTranscriptHistory = async (consultationId: string) => {
 export const TranscriptionService = {
   startTranscription,
   stopTranscription,
-  handleTranscriptionCallback,
+  ingestTranscriptChunk,
   getTranscriptHistory,
 };

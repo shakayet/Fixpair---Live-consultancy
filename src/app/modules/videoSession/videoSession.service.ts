@@ -68,14 +68,18 @@ const createSession = async (user: JwtPayload, consultationId: string) => {
       : consultation.user.toString();
 
   const recipient = await User.findById(recipientId);
-  if (!recipient) return result;
+  if (!recipient) return { ...result.toObject(), uid };
+
+  // Generate a token specifically for the recipient
+  const recipientUid = recipient.role === 'USER' ? 1001 : 2001;
+  const recipientToken = generateAgoraToken(channelName, recipientUid);
 
   const signalingData = {
     sessionId: result._id.toString(),
     callerName: user.name || 'A user',
     callerAvatar: user.image || user.avatar || '',
     appId: config.agora.appId,
-    token: result.token,
+    token: recipientToken, // Send the recipient's specific token
     channelName: result.channelName,
   };
 
@@ -164,8 +168,12 @@ const joinSession = async (user: JwtPayload, sessionId: string) => {
   // Add the assigned UID to the response for the frontend
   const uid = user.role === 'USER' ? 1001 : 2001;
 
+  // Generate a fresh token for this specific user/UID
+  const token = generateAgoraToken(session.channelName, uid);
+
   return {
     ...session.toObject(),
+    token, // Return the fresh token instead of the one in DB
     uid,
     appId: config.agora.appId,
   };

@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable no-unused-vars */
 /* eslint-disable @typescript-eslint/no-unused-vars */
@@ -85,7 +86,28 @@ const capturePayment = async (
  * Voids a previously authorized payment (cancels the hold)
  */
 const voidAuthorization = async (paymentIntentId: string) => {
-  return await stripe.paymentIntents.cancel(paymentIntentId);
+  try {
+    const intent = await stripe.paymentIntents.retrieve(paymentIntentId);
+
+    // Only cancel if it's in a cancelable state
+    if (
+      intent.status === 'requires_capture' ||
+      intent.status === 'requires_confirmation' ||
+      intent.status === 'requires_action' ||
+      intent.status === 'requires_payment_method'
+    ) {
+      return await stripe.paymentIntents.cancel(paymentIntentId);
+    }
+
+    return intent;
+  } catch (error: any) {
+    // If it's already canceled or doesn't exist, we don't want to crash the session end
+    console.error(
+      `Stripe Void Error for ${paymentIntentId}:`,
+      error.message
+    );
+    return null;
+  }
 };
 
 export const StripeService = {

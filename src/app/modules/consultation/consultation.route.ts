@@ -4,8 +4,46 @@ import auth from '../../middlewares/auth';
 import validateRequest from '../../middlewares/validateRequest';
 import { ConsultationController } from './consultation.controller';
 import { ConsultationValidation } from './consultation.validation';
+import { TranscriptionController } from '../transcription/transcription.controller';
 
 const router = express.Router();
+
+// Transcription sub-routes
+router.post(
+  '/transcription/start',
+  auth(USER_ROLES.USER, USER_ROLES.CONSULTANT, USER_ROLES.ADMIN),
+  TranscriptionController.startTranscription,
+);
+
+router.post(
+  '/:consultationId/transcription/start',
+  auth(USER_ROLES.USER, USER_ROLES.CONSULTANT, USER_ROLES.ADMIN),
+  TranscriptionController.startTranscription,
+);
+
+router.post(
+  '/transcription/stop',
+  auth(USER_ROLES.USER, USER_ROLES.CONSULTANT, USER_ROLES.ADMIN),
+  TranscriptionController.stopTranscription,
+);
+
+router.post(
+  '/:consultationId/transcription/stop',
+  auth(USER_ROLES.USER, USER_ROLES.CONSULTANT, USER_ROLES.ADMIN),
+  TranscriptionController.stopTranscription,
+);
+
+router.get(
+  '/transcription/history',
+  auth(USER_ROLES.USER, USER_ROLES.CONSULTANT, USER_ROLES.ADMIN),
+  TranscriptionController.getTranscriptHistory,
+);
+
+router.get(
+  '/:consultationId/transcription/history',
+  auth(USER_ROLES.USER, USER_ROLES.CONSULTANT, USER_ROLES.ADMIN),
+  TranscriptionController.getTranscriptHistory,
+);
 
 // Consultant: Manage unavailable slots
 router.post(

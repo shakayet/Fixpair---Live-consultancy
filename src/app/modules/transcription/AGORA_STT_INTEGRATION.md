@@ -21,11 +21,35 @@ Triggered automatically when a session ends.
 Retrieve all previous transcripts for a consultation.
 **Endpoint**: `GET /api/v1/transcription/:consultationId/history`
 
+### Relay a Live Caption Chunk (REQUIRED for live subtitles)
+Agora does **not** push recognized text to the backend over HTTP. The STT bot
+(UID `9001`) publishes each recognized chunk as an **RTC data-stream message**
+inside the channel — only clients joined to that channel receive it. Your app
+must subscribe to that data stream (Agora SDK `onStreamMessage` /
+`RtcEngineEventHandler.onStreamMessage`, decoded per Agora's RTT message
+format) and forward each decoded chunk here so the backend can persist
+finalized transcripts and re-broadcast them (e.g. to a web dashboard that
+isn't joined to the RTC channel).
+
+**Endpoint**: `POST /api/v1/transcription/:consultationId/ingest`
+**Auth**: Required (User/Consultant — must be a participant of the session)
+**Body**:
+```json
+{
+  "uid": 1001,
+  "text": "Hello, how can I help you?",
+  "isFinal": true,
+  "timestamp": 1750000000000
+}
+```
+- `uid` must be the speaker's UID as reported by the STT result (`1001` client, `2001` consultant) — any other value is rejected.
+- Send both interim (`isFinal: false`) and final chunks for the smoothest live captions; only final chunks are written to transcript history (de-duplicated server-side, since both participants relay the same data-stream message).
+
 ---
 
 ## 2. WebSocket Signaling (Live Subtitles)
 
-To show subtitles in real-time, the frontend must listen for the `transcript:new` event.
+To show subtitles in real-time, the frontend must listen for the `transcript:new` event (re-broadcast by the backend after a participant relays a chunk via `/ingest`).
 
 ### Socket Event: `transcript:new`
 **Payload Structure**:

@@ -5,10 +5,11 @@ import { StatusCodes } from 'http-status-codes';
 
 export const generateAgoraToken = (
   channelName: string,
-  uid: number = 0
+  uid: number = 0,
+  role: 'publisher' | 'subscriber' = 'publisher'
 ) => {
-  const appId = config.agora.appId;
-  const appCertificate = config.agora.appCertificate;
+  const appId = config.agora.appId?.trim();
+  const appCertificate = config.agora.appCertificate?.trim();
 
   if (!appId || !appCertificate) {
     throw new ApiError(
@@ -17,12 +18,13 @@ export const generateAgoraToken = (
     );
   }
 
-  const expirationTimeInSeconds = config.agora.expirationTime;
+  const expirationTimeInSeconds = config.agora.expirationTime || 3600;
   const currentTimestamp = Math.floor(Date.now() / 1000);
   const privilegeExpiredTs = currentTimestamp + expirationTimeInSeconds;
 
-  // Both sides and STT agent need publishing privileges
-  const agoraRole = RtcRole.PUBLISHER;
+  // Map string role to Agora RtcRole
+  const agoraRole =
+    role === 'subscriber' ? RtcRole.SUBSCRIBER : RtcRole.PUBLISHER;
 
   const token = RtcTokenBuilder.buildTokenWithUid(
     appId,

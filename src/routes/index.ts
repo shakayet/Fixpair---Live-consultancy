@@ -14,6 +14,7 @@ import { RecommendationRoutes } from '../app/modules/recommendation/recommendati
 import { TranscriptionRoutes } from '../app/modules/transcription/transcription.route';
 import { NotificationRoutes } from '../app/modules/notification/notification.route';
 import { CustomerSupportRoutes } from '../app/modules/customerSupport/customerSupport.route';
+import { AgoraRoutes } from '../app/modules/agora/agora.route';
 
 const router = express.Router();
 
@@ -32,6 +33,10 @@ const apiRoutes = [
   },
   {
     path: '/consultation',
+    route: ConsultationRoutes,
+  },
+  {
+    path: '/consultations',
     route: ConsultationRoutes,
   },
   {
@@ -77,6 +82,10 @@ const apiRoutes = [
   {
     path: '/customer-support',
     route: CustomerSupportRoutes,
+  },
+  {
+    path: '/agora',
+    route: AgoraRoutes,
   },
 ];
 
