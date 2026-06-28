@@ -26,6 +26,12 @@ router.post(
   PaymentController.attachPaymentMethod,
 );
 
+router.post(
+  '/set-default',
+  auth(USER_ROLES.USER, USER_ROLES.CONSULTANT),
+  PaymentController.setDefaultPaymentMethod,
+);
+
 router.get(
   '/methods',
   auth(USER_ROLES.USER, USER_ROLES.CONSULTANT),

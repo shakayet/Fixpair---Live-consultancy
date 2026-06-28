@@ -6,7 +6,9 @@ import ApiError from '../errors/ApiError';
 import { StatusCodes } from 'http-status-codes';
 import { errorLogger, logger } from '../shared/logger';
 
-const AGORA_API_BASE_URL = 'https://api.agora.io/v1/projects';
+// Agora Real-Time STT REST API v7.x
+// Old path (/v1/projects/{appId}/rt-transcription/...) was removed by Agora.
+const AGORA_STT_BASE_URL = 'https://api.agora.io/api/speech-to-text/v1/projects';
 
 const getBasicAuth = () => {
   const customerId = config.agora.customerId?.trim();
@@ -26,9 +28,14 @@ const getBasicAuth = () => {
 };
 
 /**
- * Acquire a resource ID for STT
+ * Start an Agora Real-Time STT agent in the channel.
+ * Single API call — no separate "acquire" step in v7.x.
+ * Returns the agent_id used for subsequent stop calls.
  */
-const acquireResource = async (channelName: string) => {
+const startTranscription = async (
+  channelName: string,
+  botToken: string,
+): Promise<string> => {
   const appId = config.agora.appId?.trim();
   if (!appId) {
     throw new ApiError(
@@ -38,85 +45,49 @@ const acquireResource = async (channelName: string) => {
   }
 
   try {
-    const response = await axios.post(
-      `${AGORA_API_BASE_URL}/${appId}/rt-transcription/acquire`,
-      {
-        instanceId: channelName,
-      },
-      {
-        headers: {
-          Authorization: getBasicAuth(),
-        },
-      },
-    );
-
+    // Sanity-check the token before sending — an empty/undefined token means
+    // the STT agent will be rejected by Agora and UID 9001 never joins.
+    const tokenStatus = !botToken
+      ? 'MISSING'
+      : botToken.length < 20
+        ? `SUSPICIOUSLY_SHORT(${botToken.length})`
+        : `OK(len=${botToken.length})`;
     logger.info(
-      `Agora STT resource acquired | appId=${appId} channel=${channelName} resourceId=${response.data.resourceId}`,
+      `Agora STT agent starting | appId=${appId} channel=${channelName} botToken=${tokenStatus} subscribeUids=1001,2001`,
     );
-
-    return response.data.resourceId;
-  } catch (error: any) {
-    const errorMessage = error.response?.data?.message || error.message;
-    const status = error.response?.status || StatusCodes.INTERNAL_SERVER_ERROR;
-    errorLogger.error(
-      `Agora STT acquire failed | appId=${appId} channel=${channelName} status=${status} message=${errorMessage}`,
-    );
-
-    throw new ApiError(
-      StatusCodes.INTERNAL_SERVER_ERROR,
-      `Agora Acquire Error: ${errorMessage}`,
-    );
-  }
-};
-
-/**
- * Start a transcription task
- */
-const startTranscription = async (
-  resourceId: string,
-  channelName: string,
-  token: string,
-) => {
-  const appId = config.agora.appId?.trim();
-  try {
     const response = await axios.post(
-      `${AGORA_API_BASE_URL}/${appId}/rt-transcription/jobs?resourceId=${resourceId}`,
+      `${AGORA_STT_BASE_URL}/${appId}/join`,
       {
-        config: {
-          features: ['recognize'],
-          recognizeConfig: {
-            language: 'en-US', // Default language
-            model: 0, // General model (0 is default)
-            output: {
-              cloudStorage: [], // Using data stream; cloud storage optional if data stream enabled
-            },
-          },
-        },
+        name: `stt-${channelName}`,
+        languages: ['en-US'],
+        maxIdleTime: 50,
         rtcConfig: {
-          channelName: channelName,
-          subInAllChannels: false,
-          token: token,
-          uid: 9001, // Fixed numeric UID for STT Agent
+          channelName,
+          subBotUid: '9001',
+          subBotToken: botToken,
+          pubBotUid: '9001',
+          pubBotToken: botToken,
+          // Explicitly subscribe to both speaker UIDs — without this the bot
+          // may only transcribe one participant by default.
+          subscribeAudioUids: ['1001', '2001'],
         },
       },
       {
-        headers: {
-          Authorization: getBasicAuth(),
-        },
+        headers: { Authorization: getBasicAuth() },
       },
     );
-    logger.info(
-      `Agora STT task started | appId=${appId} channel=${channelName} resourceId=${resourceId} taskId=${response.data.taskId}`,
-    );
 
-    return response.data.taskId;
+    const agentId: string = response.data.agent_id;
+    logger.info(
+      `Agora STT agent started | appId=${appId} channel=${channelName} agentId=${agentId} status=${response.data.status}`,
+    );
+    return agentId;
   } catch (error: any) {
     const errorMessage = error.response?.data?.message || error.message;
     const status = error.response?.status || StatusCodes.INTERNAL_SERVER_ERROR;
     errorLogger.error(
-      `Agora STT start failed | appId=${appId} channel=${channelName} resourceId=${resourceId} status=${status} message=${errorMessage}`,
+      `Agora STT start failed | appId=${appId} channel=${channelName} status=${status} message=${errorMessage}`,
     );
-
     throw new ApiError(
       StatusCodes.INTERNAL_SERVER_ERROR,
       `Agora Start Error: ${errorMessage}`,
@@ -125,33 +96,27 @@ const startTranscription = async (
 };
 
 /**
- * Stop a transcription task
+ * Stop a running Agora STT agent by its agent_id.
  */
-const stopTranscription = async (taskId: string) => {
+const stopTranscription = async (agentId: string): Promise<void> => {
   const appId = config.agora.appId?.trim();
   try {
-    await axios.delete(
-      `${AGORA_API_BASE_URL}/${appId}/rt-transcription/jobs/${taskId}`,
+    await axios.post(
+      `${AGORA_STT_BASE_URL}/${appId}/agents/${agentId}/leave`,
+      {},
       {
-        headers: {
-          Authorization: getBasicAuth(),
-        },
+        headers: { Authorization: getBasicAuth() },
       },
     );
-
-    logger.info(`Agora STT task stopped | appId=${appId} taskId=${taskId}`);
+    logger.info(`Agora STT agent stopped | appId=${appId} agentId=${agentId}`);
   } catch (error: any) {
-    // If it's already stopped, we don't want to crash the call-end flow
+    // Non-fatal — agent may have already exited on its own (maxIdleTime).
     errorLogger.error(
-      `Agora STT stop failed | appId=${appId} taskId=${taskId} message=${
+      `Agora STT stop failed | appId=${appId} agentId=${agentId} message=${
         error.response?.data?.message || error.message
       }`,
     );
   }
 };
 
-export const AgoraSttHelper = {
-  acquireResource,
-  startTranscription,
-  stopTranscription,
-};
+export const AgoraSttHelper = { startTranscription, stopTranscription };

@@ -20,31 +20,27 @@ const startTranscription = async (consultationId: string) => {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Video session not found');
   }
 
-  // 1. Acquire resource
-  const resourceId = await AgoraSttHelper.acquireResource(
-    session.channelName,
-  );
+  // Idempotency: if already running (e.g. auto-started by joinSession and
+  // frontend also calls /start), skip creating a second agent.
+  if (session.isTranscriptionActive && session.sttTaskId) {
+    return { agentId: session.sttTaskId };
+  }
 
-  // 2. Start transcription
-  // We need a token for the STT agent (UID 9001)
+  // Single API call in Agora STT v7.x — no separate "acquire" step.
   const sttToken = generateAgoraToken(session.channelName, 9001);
-
-  const taskId = await AgoraSttHelper.startTranscription(
-    resourceId,
+  const agentId = await AgoraSttHelper.startTranscription(
     session.channelName,
     sttToken,
   );
 
-  // 3. Update session with STT info
   await VideoSession.findByIdAndUpdate(session._id, {
     $set: {
-      sttResourceId: resourceId,
-      sttTaskId: taskId,
+      sttTaskId: agentId,
       isTranscriptionActive: true,
     },
   });
 
-  return { taskId, resourceId };
+  return { agentId };
 };
 
 const stopTranscription = async (consultationId: string) => {
@@ -116,14 +112,11 @@ const ingestTranscriptChunk = async (
     timestamp: chunkTimestamp,
   };
 
-  // 1. Live captions: relay every chunk (interim + final) to both participants
-  socketHelper.emitToUser(
-    session.user.toString(),
-    'transcript:new',
-    socketPayload,
-  );
-  socketHelper.emitToUser(
-    session.consultant.toString(),
+  // 1. Live captions: broadcast every chunk (interim + final) to the
+  // consultation room so both participants receive it regardless of socket
+  // reconnections (room-based, not fragile userId→socketId map lookups).
+  socketHelper.emitToRoom(
+    `consultation:${session.consultation.toString()}`,
     'transcript:new',
     socketPayload,
   );

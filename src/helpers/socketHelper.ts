@@ -60,6 +60,15 @@ const socket = (io: Server) => {
       );
     }
 
+    // Join a consultation room so transcript:new events reach both participants
+    // regardless of socket reconnections (room-based, not socket-ID-based).
+    socket.on('join-consultation', (consultationId: string) => {
+      socket.join(`consultation:${consultationId}`);
+      logger.info(
+        `Socket ${socket.id} joined room consultation:${consultationId}`,
+      );
+    });
+
     // --- Live Transcription Relay (Option B) ---
     socket.on(
       'send-speech',
@@ -108,6 +117,14 @@ const emitToUser = (userId: string, event: string, data: any) => {
   }
 };
 
+const emitToRoom = (room: string, event: string, data: any) => {
+  //@ts-ignore
+  const io = global.io as Server;
+  if (io) {
+    io.to(room).emit(event, data);
+  }
+};
+
 const broadcastToAdmins = (event: string, data: any) => {
   //@ts-ignore
   const io = global.io as Server;
@@ -116,4 +133,4 @@ const broadcastToAdmins = (event: string, data: any) => {
   }
 };
 
-export const socketHelper = { socket, emitToUser, broadcastToAdmins };
+export const socketHelper = { socket, emitToUser, emitToRoom, broadcastToAdmins };

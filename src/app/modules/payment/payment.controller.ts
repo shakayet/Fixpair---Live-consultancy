@@ -111,6 +111,42 @@ const attachPaymentMethod = catchAsync(async (req: Request, res: Response) => {
   }
 });
 
+const setDefaultPaymentMethod = catchAsync(
+  async (req: Request, res: Response) => {
+    const user = req.user as any;
+    const { paymentMethodId } = req.body;
+
+    if (!paymentMethodId) {
+      throw new ApiError(
+        StatusCodes.BAD_REQUEST,
+        'paymentMethodId is required',
+      );
+    }
+
+    const userData = await User.findById(user.id);
+    if (!userData) throw new ApiError(StatusCodes.NOT_FOUND, 'User not found');
+
+    const methodExists = userData.paymentMethods?.some(
+      m => m.methodId === paymentMethodId,
+    );
+    if (!methodExists) {
+      throw new ApiError(StatusCodes.NOT_FOUND, 'Payment method not found');
+    }
+
+    userData.paymentMethods?.forEach(m => {
+      m.isDefault = m.methodId === paymentMethodId;
+    });
+    await userData.save();
+
+    sendResponse(res, {
+      success: true,
+      statusCode: StatusCodes.OK,
+      message: 'Default payment method updated successfully',
+      data: userData.paymentMethods,
+    });
+  },
+);
+
 const getPaymentMethods = catchAsync(async (req: Request, res: Response) => {
   const user = req.user as any;
   const userData = await User.findById(user.id);
@@ -222,6 +258,7 @@ const handleStripeWebhook = catchAsync(async (req: Request, res: Response) => {
 export const PaymentController = {
   createStripeCustomer,
   attachPaymentMethod,
+  setDefaultPaymentMethod,
   getPaymentMethods,
   handleStripeWebhook,
 };
