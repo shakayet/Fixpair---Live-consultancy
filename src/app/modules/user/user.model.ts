@@ -58,7 +58,6 @@ const userSchema = new Schema<IUser, UserModal>(
     },
     firebaseUid: {
       type: String,
-      default: null,
       unique: true,
       sparse: true,
     },
