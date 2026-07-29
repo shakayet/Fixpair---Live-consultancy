@@ -9,7 +9,6 @@ import ApiError from '../../../errors/ApiError';
 import { User } from '../user/user.model';
 import { Consultation } from '../consultation/consultation.model';
 import { StripeService } from './stripe.service';
-import { PayPalService } from './paypal.service';
 import { Transaction } from './payment.model';
 import config from '../../../config';
 import { socketHelper } from '../../../helpers/socketHelper';
@@ -65,13 +64,16 @@ const startBilling = async (consultationId: string) => {
     );
   }
 
-  // Find default payment method
+  // Per-minute billing is currently implemented through Stripe only. Never
+  // select a PayPal method and then mark an unprocessed charge as paid.
+  const stripeMethods =
+    user.paymentMethods?.filter(method => method.provider === 'stripe') || [];
   const defaultMethod =
-    user.paymentMethods?.find(m => m.isDefault) || user.paymentMethods?.[0];
+    stripeMethods.find(method => method.isDefault) || stripeMethods[0];
   if (!defaultMethod)
     throw new ApiError(
       StatusCodes.BAD_REQUEST,
-      'No default payment method found',
+      'No Stripe payment method found',
     );
 
   const perMinuteRate = consultant.perMinuteRate || 0;
@@ -147,17 +149,20 @@ const recoverBilling = async () => {
   for (const consultation of ongoingConsultations) {
     if (!activeSessions.has(consultation._id.toString())) {
       console.log(`Resuming billing for consultation: ${consultation._id}`);
-      // Since pre-auth was likely released or captured, we just resume per-minute charging
-      const timer = setInterval(async () => {
-        await attemptMinuteCharge(consultation._id.toString());
-      }, 60000);
-
       const user = await User.findById(consultation.user);
+      const stripeMethods =
+        user?.paymentMethods?.filter(method => method.provider === 'stripe') ||
+        [];
       const defaultMethod =
-        user?.paymentMethods?.find(m => m.isDefault) ||
-        user?.paymentMethods?.[0];
+        stripeMethods.find(method => method.isDefault) || stripeMethods[0];
 
       if (user && defaultMethod) {
+        // Since pre-auth was likely released or captured, resume per-minute
+        // charging only after all required billing state has been found.
+        const timer = setInterval(async () => {
+          await attemptMinuteCharge(consultation._id.toString());
+        }, 60000);
+
         activeSessions.set(consultation._id.toString(), {
           startTime: (consultation as any).createdAt.getTime(),
           lastChargeTime: Date.now(),
@@ -299,6 +304,9 @@ const attemptMinuteCharge = async (
   } catch (error) {
     console.error(`Billing failed for ${consultationId}:`, error);
     await handlePaymentFailure(consultationId);
+    if (isInitial) {
+      throw error;
+    }
   }
 };
 

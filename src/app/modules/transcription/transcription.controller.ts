@@ -16,7 +16,10 @@ const startTranscription = catchAsync(async (req: Request, res: Response) => {
     });
   }
 
-  const result = await TranscriptionService.startTranscription(consultationId);
+  const result = await TranscriptionService.startTranscription(
+    consultationId,
+    req.user as JwtPayload,
+  );
 
   sendResponse(res, {
     success: true,
@@ -37,7 +40,10 @@ const stopTranscription = catchAsync(async (req: Request, res: Response) => {
     });
   }
 
-  await TranscriptionService.stopTranscription(consultationId);
+  await TranscriptionService.stopTranscription(
+    consultationId,
+    req.user as JwtPayload,
+  );
 
   sendResponse(res, {
     success: true,
@@ -60,6 +66,7 @@ const getTranscriptHistory = catchAsync(async (req: Request, res: Response) => {
 
   const result = await TranscriptionService.getTranscriptHistory(
     consultationId as string,
+    req.user as JwtPayload,
   );
 
   sendResponse(res, {

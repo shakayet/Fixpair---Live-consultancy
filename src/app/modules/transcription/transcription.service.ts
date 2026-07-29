@@ -9,7 +9,26 @@ import { Transcript } from './transcription.model';
 import { socketHelper } from '../../../helpers/socketHelper';
 import { generateAgoraToken } from '../../../helpers/agoraTokenHelper';
 
-const startTranscription = async (consultationId: string) => {
+const assertSessionAccess = (
+  session: { user: { toString(): string }; consultant: { toString(): string } },
+  user?: JwtPayload,
+) => {
+  if (!user || user.role === 'ADMIN' || user.role === 'SUPER_ADMIN') {
+    return;
+  }
+
+  if (
+    session.user.toString() !== user.id &&
+    session.consultant.toString() !== user.id
+  ) {
+    throw new ApiError(StatusCodes.FORBIDDEN, 'You are not part of this session');
+  }
+};
+
+const startTranscription = async (
+  consultationId: string,
+  user?: JwtPayload,
+) => {
   const consultation = await Consultation.findById(consultationId);
   if (!consultation) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Consultation not found');
@@ -19,6 +38,7 @@ const startTranscription = async (consultationId: string) => {
   if (!session) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Video session not found');
   }
+  assertSessionAccess(session, user);
 
   // Idempotency: if already running (e.g. auto-started by joinSession and
   // frontend also calls /start), skip creating a second agent.
@@ -43,9 +63,17 @@ const startTranscription = async (consultationId: string) => {
   return { agentId };
 };
 
-const stopTranscription = async (consultationId: string) => {
+const stopTranscription = async (
+  consultationId: string,
+  user?: JwtPayload,
+) => {
   const session = await VideoSession.findOne({ consultation: consultationId });
-  if (!session || !session.sttTaskId) {
+  if (!session) {
+    throw new ApiError(StatusCodes.NOT_FOUND, 'Video session not found');
+  }
+  assertSessionAccess(session, user);
+
+  if (!session.sttTaskId) {
     return;
   }
 
@@ -146,7 +174,16 @@ const ingestTranscriptChunk = async (
   }
 };
 
-const getTranscriptHistory = async (consultationId: string) => {
+const getTranscriptHistory = async (
+  consultationId: string,
+  user?: JwtPayload,
+) => {
+  const session = await VideoSession.findOne({ consultation: consultationId });
+  if (!session) {
+    throw new ApiError(StatusCodes.NOT_FOUND, 'Video session not found');
+  }
+  assertSessionAccess(session, user);
+
   return await Transcript.find({ consultation: consultationId }).sort({
     timestamp: 1,
   });

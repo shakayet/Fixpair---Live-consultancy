@@ -7,7 +7,12 @@ const router = express.Router();
 
 router.get(
   '/token',
-  auth(USER_ROLES.USER, USER_ROLES.CONSULTANT, USER_ROLES.ADMIN),
+  auth(
+    USER_ROLES.USER,
+    USER_ROLES.CONSULTANT,
+    USER_ROLES.ADMIN,
+    USER_ROLES.SUPER_ADMIN,
+  ),
   AgoraController.getToken,
 );
 

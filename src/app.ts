@@ -14,6 +14,9 @@ app.use(Morgan.errorHandler);
 //body parser
 app.use(cors());
 app.use(cookieParser());
+// Stripe verifies webhook signatures against the exact request bytes. This
+// parser must run before the application-wide JSON parser.
+app.use('/api/v1/payment/webhook', express.raw({ type: 'application/json' }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

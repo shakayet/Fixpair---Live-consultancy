@@ -11,37 +11,67 @@ const router = express.Router();
 // Transcription sub-routes
 router.post(
   '/transcription/start',
-  auth(USER_ROLES.USER, USER_ROLES.CONSULTANT, USER_ROLES.ADMIN),
+  auth(
+    USER_ROLES.USER,
+    USER_ROLES.CONSULTANT,
+    USER_ROLES.ADMIN,
+    USER_ROLES.SUPER_ADMIN,
+  ),
   TranscriptionController.startTranscription,
 );
 
 router.post(
   '/:consultationId/transcription/start',
-  auth(USER_ROLES.USER, USER_ROLES.CONSULTANT, USER_ROLES.ADMIN),
+  auth(
+    USER_ROLES.USER,
+    USER_ROLES.CONSULTANT,
+    USER_ROLES.ADMIN,
+    USER_ROLES.SUPER_ADMIN,
+  ),
   TranscriptionController.startTranscription,
 );
 
 router.post(
   '/transcription/stop',
-  auth(USER_ROLES.USER, USER_ROLES.CONSULTANT, USER_ROLES.ADMIN),
+  auth(
+    USER_ROLES.USER,
+    USER_ROLES.CONSULTANT,
+    USER_ROLES.ADMIN,
+    USER_ROLES.SUPER_ADMIN,
+  ),
   TranscriptionController.stopTranscription,
 );
 
 router.post(
   '/:consultationId/transcription/stop',
-  auth(USER_ROLES.USER, USER_ROLES.CONSULTANT, USER_ROLES.ADMIN),
+  auth(
+    USER_ROLES.USER,
+    USER_ROLES.CONSULTANT,
+    USER_ROLES.ADMIN,
+    USER_ROLES.SUPER_ADMIN,
+  ),
   TranscriptionController.stopTranscription,
 );
 
 router.get(
   '/transcription/history',
-  auth(USER_ROLES.USER, USER_ROLES.CONSULTANT, USER_ROLES.ADMIN),
+  auth(
+    USER_ROLES.USER,
+    USER_ROLES.CONSULTANT,
+    USER_ROLES.ADMIN,
+    USER_ROLES.SUPER_ADMIN,
+  ),
   TranscriptionController.getTranscriptHistory,
 );
 
 router.get(
   '/:consultationId/transcription/history',
-  auth(USER_ROLES.USER, USER_ROLES.CONSULTANT, USER_ROLES.ADMIN),
+  auth(
+    USER_ROLES.USER,
+    USER_ROLES.CONSULTANT,
+    USER_ROLES.ADMIN,
+    USER_ROLES.SUPER_ADMIN,
+  ),
   TranscriptionController.getTranscriptHistory,
 );
 

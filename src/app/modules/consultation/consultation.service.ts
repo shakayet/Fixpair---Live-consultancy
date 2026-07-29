@@ -323,6 +323,16 @@ const updateBookingStatus = async (
       );
     }
 
+    if (
+      user.role === 'CONSULTANT' &&
+      booking.consultant.toString() !== user.id
+    ) {
+      throw new ApiError(
+        StatusCodes.FORBIDDEN,
+        'You can only update your own consultations',
+      );
+    }
+
     // Re-verify availability if the consultant is accepting a scheduled booking
     if (status === 'accepted' && booking.bookingType === 'scheduled') {
       const slotDate = new Date(booking.date!);

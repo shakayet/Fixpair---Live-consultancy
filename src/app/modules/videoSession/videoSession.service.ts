@@ -31,6 +31,13 @@ const createSession = async (user: JwtPayload, consultationId: string) => {
     );
   }
 
+  if (consultation.status !== 'confirmed') {
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      'A video session can only be created for a confirmed consultation',
+    );
+  }
+
   // Check if a session already exists for this consultation
   const existingSession = await VideoSession.findOne({
     consultation: consultationId,
@@ -224,7 +231,7 @@ const endSession = async (user: JwtPayload, sessionId: string) => {
   }
 
   // Stop billing and generate invoice
-  BillingService.stopBilling(session.consultation.toString());
+  await BillingService.stopBilling(session.consultation.toString());
   await InvoiceService.finalizeInvoice(session.consultation.toString());
 
   return session;
@@ -257,6 +264,16 @@ const handleCallAction = async (
   const session = await VideoSession.findById(sessionId);
   if (!session) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Session not found');
+  }
+
+  if (
+    session.user.toString() !== user.id &&
+    session.consultant.toString() !== user.id
+  ) {
+    throw new ApiError(
+      StatusCodes.FORBIDDEN,
+      'You are not part of this session',
+    );
   }
 
   const recipientId =
